@@ -182,7 +182,7 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
                         </span>
                       </p>
                       <p className="text-xs text-gray-500">
-                        Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span>
+                        Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span> | 📞 {emp.contactNo || "No Contact"}
                       </p>
                       <p className="text-[11px] text-teal-700 font-semibold font-mono mt-0.5">
                         {emp.uhid || ""} {emp.certificateNo ? `| Cert: ${emp.certificateNo}` : ""}
