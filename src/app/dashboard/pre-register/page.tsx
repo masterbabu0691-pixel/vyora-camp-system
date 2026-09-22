@@ -36,6 +36,7 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
   };
 
   // EXCEL BULK UPLOAD HANDLER
+  // EXCEL BULK UPLOAD HANDLER
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -49,8 +50,9 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
 
     reader.onload = async (evt) => {
       try {
-        const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        // UPGRADED: Reading as a modern ArrayBuffer instead of a binary string
+        const arrayBuffer = evt.target?.result;
+        const wb = XLSX.read(arrayBuffer, { type: 'array' }); 
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws);
@@ -93,6 +95,10 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
         e.target.value = ''; // Reset input to allow re-uploading if needed
       }
     };
+
+    // UPGRADED: Trigger the modern buffer reader
+    reader.readAsArrayBuffer(file);
+  };
 
     reader.readAsBinaryString(file);
   };
