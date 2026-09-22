@@ -1,19 +1,20 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
+import * as XLSX from 'xlsx';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-export default function PreRegistrationPage() {
+export default function PreRegistrationPage(): import("react").JSX.Element {
   const { data: clientData, isLoading: clientsLoading } = useSWR('/api/clients', fetcher);
   const [selectedCampId, setSelectedCampId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   const { data: empData, mutate: refreshEmployees } = useSWR(
     selectedCampId ? `/api/pre-register?campId=${selectedCampId}` : null, fetcher
   );
 
-  // Added designation to form state
   const [form, setForm] = useState({ name: "", empCode: "", department: "", designation: "", age: "", sex: "", contactNo: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +33,68 @@ export default function PreRegistrationPage() {
       document.getElementById("nameInput")?.focus(); 
     }
     setSaving(false);
+  };
+
+  // EXCEL BULK UPLOAD HANDLER
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!selectedCampId) {
+      alert("Please select a camp first!");
+      return;
+    }
+
+    setUploading(true);
+    const reader = new FileReader();
+
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+
+        // Flexible mapping for various Excel column header spellings
+        const mappedEmployees = data.map((row: any) => ({
+          name: row['Name'] || row['Employee Name'] || row['Full Name'] || '',
+          empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '',
+          department: row['Department'] || row['Dept'] || '',
+          designation: row['Designation'] || row['Role'] || row['Job Role'] || '',
+          age: row['Age'] || null,
+          sex: row['Sex'] || row['Gender'] || '',
+          contactNo: row['Contact'] || row['Mobile'] || row['Phone'] || ''
+        })).filter((emp: any) => emp.name && String(emp.name).trim() !== '');
+
+        if (mappedEmployees.length === 0) {
+          alert("No valid employee rows found in the sheet. Please make sure there is a 'Name' column.");
+          setUploading(false);
+          return;
+        }
+
+        const response = await fetch('/api/employees/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          alert(`Successfully uploaded ${result.count} employees!`);
+          refreshEmployees();
+        } else {
+          alert(result.error || "Upload failed.");
+        }
+      } catch (error) {
+        console.error("Error parsing Excel:", error);
+        alert("Failed to parse the Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.");
+      } finally {
+        setUploading(false);
+        e.target.value = ''; // Reset input to allow re-uploading if needed
+      }
+    };
+
+    reader.readAsBinaryString(file);
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
@@ -59,7 +122,7 @@ export default function PreRegistrationPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
           
           <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-            <h2 className="text-lg font-bold text-[#008C8C] mb-4">2. Add Employee Details</h2>
+            <h2 className="text-lg font-bold text-[#008C8C] mb-4">2. Add Employee Details (Single Entry)</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><label className="block text-xs font-bold text-gray-500">Full Name *</label><input id="nameInput" required type="text" className="mt-1 w-full border-2 p-2 rounded-md font-semibold" value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></div>
               
@@ -68,7 +131,6 @@ export default function PreRegistrationPage() {
                 <div><label className="block text-xs font-bold text-gray-500">Department</label><input type="text" className="mt-1 w-full border-2 p-2 rounded-md font-semibold" value={form.department} onChange={e => setForm({...form, department: e.target.value})} /></div>
               </div>
 
-              {/* Added Designation Input */}
               <div><label className="block text-xs font-bold text-gray-500">Designation (Job Role)</label><input type="text" className="mt-1 w-full border-2 p-2 rounded-md font-semibold" value={form.designation} onChange={e => setForm({...form, designation: e.target.value})} /></div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -82,18 +144,57 @@ export default function PreRegistrationPage() {
           </div>
 
           <div className="md:col-span-3 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <h2 className="text-lg font-bold text-[#002642] mb-4">3. Roster</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h2 className="text-lg font-bold text-[#002642]">
+                3. Roster ({empData?.employees?.length || 0})
+              </h2>
+
+              {/* EXCEL BULK UPLOAD ACTION BUTTON */}
+              <div>
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls, .csv" 
+                  id="excel-upload" 
+                  className="hidden" 
+                  disabled={uploading}
+                  onChange={handleFileUpload} 
+                />
+                <label 
+                  htmlFor="excel-upload" 
+                  className={`cursor-pointer inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg shadow-sm text-white transition ${
+                    uploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  <span>{uploading ? "⏳ Uploading..." : "📊 Upload Excel Roster"}</span>
+                </label>
+              </div>
+            </div>
+
             <div className="overflow-y-auto max-h-125 border-t pt-2">
               <ul className="divide-y divide-gray-100">
                 {empData?.employees?.map((emp: any) => (
                   <li key={emp.id} className="py-3 flex justify-between items-center">
                     <div>
-                      <p className="font-bold text-[#002642]">{emp.name} <span className="text-xs text-gray-400 font-normal ml-2">{emp.age ? `${emp.age}y` : ""} {emp.sex ? `| ${emp.sex.charAt(0)}` : ""}</span></p>
-                      {/* Added Designation Display */}
-                      <p className="text-xs text-gray-500">Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span></p>
+                      <p className="font-bold text-[#002642]">
+                        {emp.name} 
+                        <span className="text-xs text-gray-400 font-normal ml-2">
+                          {emp.age ? `${emp.age}y` : ""} {emp.sex ? `| ${emp.sex.charAt(0)}` : ""}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span>
+                      </p>
+                      <p className="text-[11px] text-teal-700 font-semibold font-mono mt-0.5">
+                        {emp.uhid || ""} {emp.certificateNo ? `| Cert: ${emp.certificateNo}` : ""}
+                      </p>
                     </div>
                   </li>
                 ))}
+                {(!empData?.employees || empData.employees.length === 0) && (
+                  <li className="py-8 text-center text-sm text-gray-400">
+                    No employees pre-registered for this camp yet. Use the single entry form on the left or upload an Excel roster.
+                  </li>
+                )}
               </ul>
             </div>
           </div>
