@@ -9,7 +9,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   
   // Fetch current logged-in user data
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession() || { data: null, status: "loading" };
 
   // 1. Define all routes and the specific roles allowed to see them
   const allNavItems = [
