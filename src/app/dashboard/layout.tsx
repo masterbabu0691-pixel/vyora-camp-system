@@ -13,15 +13,15 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   const allNavItems = [
-    { name: "Dashboard Home", href: "/dashboard", icon: "📊", roles: ["SUPERADMIN", "ADMIN", "RECEPTION", "PHLEBOTOMIST", "DOCTOR", "TECHNICIAN"] },
-    { name: "Client Manager", href: "/dashboard/clients", icon: "🏢", roles: ["SUPERADMIN", "ADMIN"] },
-    { name: "Pre-Registration", href: "/dashboard/pre-register", icon: "📝", roles: ["SUPERADMIN", "ADMIN", "RECEPTION"] },
-    { name: "Reception", href: "/dashboard/reception", icon: "📋", roles: ["SUPERADMIN", "ADMIN", "RECEPTION"] },
-    { name: "Phlebotomy Queue", href: "/dashboard/phlebotomy", icon: "🩸", roles: ["SUPERADMIN", "ADMIN", "PHLEBOTOMIST"] },
-    { name: "Doctor Queue", href: "/dashboard/doctor", icon: "🩺", roles: ["SUPERADMIN", "ADMIN", "DOCTOR"] },
-    { name: "Laboratory Queue", href: "/dashboard/laboratory", icon: "🔬", roles: ["SUPERADMIN", "ADMIN", "TECHNICIAN"] },
-    { name: "Review & Sign-Off", href: "/dashboard/review", icon: "📑", roles: ["SUPERADMIN", "ADMIN", "DOCTOR"] },
-    { name: "Client Reports", href: "/dashboard/reports", icon: "📈", roles: ["SUPERADMIN", "ADMIN"] },
+    { name: "Dashboard Home", href: "/dashboard", icon: "📊", roles: ["SUPER_ADMIN", "ADMIN", "RECEPTION", "PHLEBOTOMIST", "DOCTOR", "TECHNICIAN"] },
+    { name: "Client Manager", href: "/dashboard/clients", icon: "🏢", roles: ["SUPER_ADMIN", "ADMIN"] },
+    { name: "Pre-Registration", href: "/dashboard/pre-register", icon: "📝", roles: ["SUPER_ADMIN", "ADMIN", "RECEPTION"] },
+    { name: "Reception", href: "/dashboard/reception", icon: "📋", roles: ["SUPER_ADMIN", "ADMIN", "RECEPTION"] },
+    { name: "Phlebotomy Queue", href: "/dashboard/phlebotomy", icon: "🩸", roles: ["SUPER_ADMIN", "ADMIN", "PHLEBOTOMIST"] },
+    { name: "Doctor Queue", href: "/dashboard/doctor", icon: "🩺", roles: ["SUPER_ADMIN", "ADMIN", "DOCTOR"] },
+    { name: "Laboratory Queue", href: "/dashboard/laboratory", icon: "🔬", roles: ["SUPER_ADMIN", "ADMIN", "TECHNICIAN"] },
+    { name: "Review & Sign-Off", href: "/dashboard/review", icon: "📑", roles: ["SUPER_ADMIN", "ADMIN", "DOCTOR"] },
+    { name: "Client Reports", href: "/dashboard/reports", icon: "📈", roles: ["SUPER_ADMIN", "ADMIN"] },
   ];
 
   const userRole = (session?.user as any)?.role || "RECEPTION"; 
