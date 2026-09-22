@@ -2,16 +2,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, SessionProvider } from "next-auth/react";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+// 1. The main layout content that requires session data
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   
-  // Fetch current logged-in user data
-  const { data: session, status } = useSession() || { data: null, status: "loading" };
+  // Now safely wrapped, this will load quickly and successfully 
+  const { data: session, status } = useSession();
 
-  // 1. Define all routes and the specific roles allowed to see them
   const allNavItems = [
     { name: "Dashboard Home", href: "/dashboard", icon: "📊", roles: ["SUPERADMIN", "ADMIN", "RECEPTION", "PHLEBOTOMIST", "DOCTOR", "TECHNICIAN"] },
     { name: "Client Manager", href: "/dashboard/clients", icon: "🏢", roles: ["SUPERADMIN", "ADMIN"] },
@@ -24,12 +24,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Client Reports", href: "/dashboard/reports", icon: "📈", roles: ["SUPERADMIN", "ADMIN"] },
   ];
 
-  // 2. Filter the navigation based on the user's actual role in the database
   const userRole = (session?.user as any)?.role || "RECEPTION"; 
   const authorizedNavItems = allNavItems.filter(item => item.roles.includes(userRole));
 
   if (status === "loading") {
-    return <div className="min-h-screen flex items-center justify-center bg-[#002642] text-white font-bold">Loading System...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-[#002642] text-white font-bold text-xl">Loading System...</div>;
   }
 
   return (
@@ -63,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* 🚀 RESPONSIVE SIDEBAR (Now Role-Protected) */}
+      {/* 🚀 RESPONSIVE SIDEBAR */}
       <div className={`fixed inset-y-0 left-0 transform ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} md:relative md:translate-x-0 transition-transform duration-300 ease-in-out z-40 w-64 bg-[#002642] text-white flex flex-col h-screen shadow-2xl md:shadow-none`}>
         
         {/* DESKTOP LOGO */}
@@ -120,5 +119,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
     </div>
+  );
+}
+
+// 2. Wrap the layout in the Provider to prevent Next.js crashes
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SessionProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </SessionProvider>
   );
 }
