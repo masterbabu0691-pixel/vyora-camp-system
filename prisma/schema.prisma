@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// We manually configure SQLite here
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Users & Setup ---
+model User {
+  id       String @id @default(cuid())
+  name     String
+  username String @unique
+  password String 
+  role     String @default("RECEPTION") 
+}
+
+model Client {
+  id         String @id @default(cuid())
+  clientCode String @unique
+  name       String
+  camps      Camp[]
+}
+
+model Camp {
+  id           String     @id @default(cuid())
+  campName     String
+  campDate     DateTime
+  clientId     String
+  client       Client     @relation(fields: [clientId], references: [id])
+  employees    Employee[]
+}
+
+// --- Employee & Workflow ---
+model Employee {
+  id            String   @id @default(cuid())
+  campId        String
+  camp          Camp     @relation(fields: [campId], references: [id])
+  serialNo      Int
+  uhid          String   @unique
+  
+  // These are now optional (?) for pre-registration
+  empCode       String?
+  name          String
+  age           Int?
+  sex           String?
+  department    String?
+  designation   String?
+  contactNo     String?
+  email         String?
+  
+  status        String   @default("REGISTERED") 
+  bloodCollected Boolean @default(false)
+  urineCollected Boolean @default(false)
+  
+  vitals        Vitals?
+  examination   Examination?
+  labResults    LabResult[]
+  conclusion    Conclusion?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Vitals {
+  id         String   @id @default(cuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  height     Float?
+  weight     Float?
+  bmi        Float?
+  heartRate  Int?
+  bloodPress String?
+  spO2       Float?
+}
+
+model Examination {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  pastHistory     String?
+  comorbidities   String?
+  eyeRight        String?
+  eyeLeft         String?
+  colorBlindness  String?
+  ent             String?
+  oral            String?
+  headNeck        String?
+  lungsChest      String?
+  cardiovascular  String?
+  skinVaricose    String?
+}
+
+model LabResult {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  testName    String
+  result      String?
+  unit        String?
+  flag        String?
+}
+
+model Conclusion {
+  id          String   @id @default(cuid())
+  employeeId  String   @unique
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  fitness     String   
+  remarks     String?
+  finalizedAt DateTime @default(now())
+}
