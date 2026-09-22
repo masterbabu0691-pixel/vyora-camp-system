@@ -35,8 +35,7 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
     setSaving(false);
   };
 
-  // EXCEL BULK UPLOAD HANDLER
-  // EXCEL BULK UPLOAD HANDLER
+  // EXCEL BULK UPLOAD HANDLER (CLEANED)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -48,18 +47,13 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
     setUploading(true);
 
     try {
-      // 1. Bypass FileReader and use modern native arrayBuffer
+      // 1. Parse Excel File Natively
       const arrayBuffer = await file.arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
-      const wb = XLSX.read(data, { type: 'array' }); 
-      
-      const wsname = wb.SheetNames[0];
-      const ws = wb.Sheets[wsname];
-      
-      // 2. Extract JSON (defval ensures empty cells don't break the parser)
-      const jsonData = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      const workbook = XLSX.read(arrayBuffer); 
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      // 3. Map to database format
+      // 2. Map to Database Format
       const mappedEmployees = jsonData.map((row: any) => ({
         name: row['Name'] || row['Employee Name'] || row['Full Name'] || '',
         empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '',
@@ -77,33 +71,38 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
         return;
       }
 
-      // 4. Send to Neon Database
-      const response = await fetch('/api/employees/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
-      });
+      // 3. Send to Neon Database
+      try {
+        const response = await fetch('/api/employees/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
+        });
 
-      const result = await response.json();
-      if (result.success) {
-        alert(`Successfully uploaded ${result.count} employees!`);
-        refreshEmployees();
-      } else {
-        alert(result.error || "Upload failed.");
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error(`Server returned a 500 Error. Prisma schema might be out of sync.`);
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          alert(`Successfully uploaded ${result.count} employees!`);
+          refreshEmployees();
+        } else {
+          alert("Database Error: " + (result.error || "Upload failed."));
+        }
+      } catch (dbError: any) {
+        console.error("Database Save Error:", dbError);
+        alert("Excel parsed successfully, but failed to save to database: " + dbError.message);
       }
-    } catch (error) {
-      console.error("Error parsing Excel:", error);
-      alert("Failed to read file. If the file is open in Excel, please close it and try again.");
+
+    } catch (excelError: any) {
+      console.error("Excel Parse Error:", excelError);
+      alert("Failed to read the Excel file itself. Close the file if it is open in Excel and try again.");
     } finally {
       setUploading(false);
       e.target.value = ''; 
     }
-  };
-    // UPGRADED: Trigger the modern buffer reader
-    reader.readAsArrayBuffer(file);
-  };
-
-    reader.readAsBinaryString(file);
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
@@ -158,7 +157,6 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
                 3. Roster ({empData?.employees?.length || 0})
               </h2>
 
-              {/* EXCEL BULK UPLOAD ACTION BUTTON */}
               <div>
                 <input 
                   type="file" 
