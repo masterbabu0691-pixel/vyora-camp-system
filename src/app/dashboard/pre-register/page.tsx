@@ -37,7 +37,7 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
 
   // EXCEL BULK UPLOAD HANDLER
   // EXCEL BULK UPLOAD HANDLER
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!selectedCampId) {
@@ -46,56 +46,59 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
     }
 
     setUploading(true);
-    const reader = new FileReader();
 
-    reader.onload = async (evt) => {
-      try {
-        // UPGRADED: Reading as a modern ArrayBuffer instead of a binary string
-        const arrayBuffer = evt.target?.result;
-        const wb = XLSX.read(arrayBuffer, { type: 'array' }); 
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const data = XLSX.utils.sheet_to_json(ws);
+    try {
+      // 1. Bypass FileReader and use modern native arrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
+      const wb = XLSX.read(data, { type: 'array' }); 
+      
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      
+      // 2. Extract JSON (defval ensures empty cells don't break the parser)
+      const jsonData = XLSX.utils.sheet_to_json(ws, { defval: "" });
 
-        // Flexible mapping for various Excel column header spellings
-        const mappedEmployees = data.map((row: any) => ({
-          name: row['Name'] || row['Employee Name'] || row['Full Name'] || '',
-          empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '',
-          department: row['Department'] || row['Dept'] || '',
-          designation: row['Designation'] || row['Role'] || row['Job Role'] || '',
-          age: row['Age'] || null,
-          sex: row['Sex'] || row['Gender'] || '',
-          contactNo: row['Contact'] || row['Mobile'] || row['Phone'] || ''
-        })).filter((emp: any) => emp.name && String(emp.name).trim() !== '');
+      // 3. Map to database format
+      const mappedEmployees = jsonData.map((row: any) => ({
+        name: row['Name'] || row['Employee Name'] || row['Full Name'] || '',
+        empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '',
+        department: row['Department'] || row['Dept'] || '',
+        designation: row['Designation'] || row['Role'] || row['Job Role'] || '',
+        age: row['Age'] ? parseInt(row['Age']) : null,
+        sex: row['Sex'] || row['Gender'] || '',
+        contactNo: row['Contact'] || row['Mobile'] || row['Phone'] || ''
+      })).filter((emp: any) => emp.name && String(emp.name).trim() !== '');
 
-        if (mappedEmployees.length === 0) {
-          alert("No valid employee rows found in the sheet. Please make sure there is a 'Name' column.");
-          setUploading(false);
-          return;
-        }
-
-        const response = await fetch('/api/employees/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
-        });
-
-        const result = await response.json();
-        if (result.success) {
-          alert(`Successfully uploaded ${result.count} employees!`);
-          refreshEmployees();
-        } else {
-          alert(result.error || "Upload failed.");
-        }
-      } catch (error) {
-        console.error("Error parsing Excel:", error);
-        alert("Failed to parse the Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.");
-      } finally {
+      if (mappedEmployees.length === 0) {
+        alert("No valid employees found. Ensure your column header is exactly 'Name'.");
         setUploading(false);
-        e.target.value = ''; // Reset input to allow re-uploading if needed
+        e.target.value = '';
+        return;
       }
-    };
 
+      // 4. Send to Neon Database
+      const response = await fetch('/api/employees/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`Successfully uploaded ${result.count} employees!`);
+        refreshEmployees();
+      } else {
+        alert(result.error || "Upload failed.");
+      }
+    } catch (error) {
+      console.error("Error parsing Excel:", error);
+      alert("Failed to read file. If the file is open in Excel, please close it and try again.");
+    } finally {
+      setUploading(false);
+      e.target.value = ''; 
+    }
+  };
     // UPGRADED: Trigger the modern buffer reader
     reader.readAsArrayBuffer(file);
   };
