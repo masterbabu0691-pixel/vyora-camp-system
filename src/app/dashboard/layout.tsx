@@ -46,7 +46,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <Link href="/dashboard" className={linkClass("/dashboard")}>Dashboard Home</Link>
-          <Link href="/dashboard" className={linkClass("/dashboard")}>Dashboard Home</Link>
           
           {/* Admin Management Tools */}
           {isAdmin && (

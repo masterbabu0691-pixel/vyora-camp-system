@@ -2,7 +2,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// We manually configure SQLite here
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -10,64 +9,78 @@ datasource db {
 
 // --- Users & Setup ---
 model User {
-  id       String @id @default(cuid())
-  name     String
-  username String @unique
-  password String 
-  role     String @default("RECEPTION") 
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  password  String 
+  role      String   @default("RECEPTION") // SUPER_ADMIN, RECEPTION, PHLEBOTOMY, DOCTOR, LAB, REVIEW
+  createdAt DateTime @default(now())
 }
 
 model Client {
-  id         String @id @default(cuid())
-  clientCode String @unique
+  id         String   @id @default(cuid())
+  clientCode String   @unique // Auto-generated: e.g., VHC-CL-2026-001
   name       String
   camps      Camp[]
+  createdAt  DateTime @default(now())
 }
 
 model Camp {
-  id           String     @id @default(cuid())
-  campName     String
-  campDate     DateTime
-  clientId     String
-  client       Client     @relation(fields: [clientId], references: [id])
-  employees    Employee[]
+  id               String     @id @default(cuid())
+  campName         String
+  campDate         DateTime
+  clientId         String
+  client           Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  // HR & Field Team Tracking
+  leadDoctor       String?
+  phlebotomist     String?
+  campCoordinator String?
+  technician       String?
+
+  // Configurable Test Checklist stored as comma-separated or JSON string
+  // Defaults to full occupational/FSSAI package
+  testChecklist    String     @default("CBC,RBS,URINE,STOOL,WIDAL,VISION,BP,BMI")
+
+  employees        Employee[]
+  createdAt        DateTime   @default(now())
 }
 
 // --- Employee & Workflow ---
 model Employee {
-  id            String   @id @default(cuid())
-  campId        String
-  camp          Camp     @relation(fields: [campId], references: [id])
-  serialNo      Int
-  uhid          String   @unique
+  id             String       @id @default(cuid())
+  campId         String
+  camp           Camp         @relation(fields: [campId], references: [id], onDelete: Cascade)
+  serialNo       Int
+  uhid           String       @unique
+  certificateNo  String?      @unique // e.g., VHC/2026/FSSAI/0001
   
-  // These are now optional (?) for pre-registration
-  empCode       String?
-  name          String
-  age           Int?
-  sex           String?
-  department    String?
-  designation   String?
-  contactNo     String?
-  email         String?
+  empCode        String?
+  name           String
+  age            Int?
+  sex            String?
+  department     String?
+  designation    String?
+  contactNo      String?
+  email          String?
   
-  status        String   @default("REGISTERED") 
-  bloodCollected Boolean @default(false)
-  urineCollected Boolean @default(false)
+  status         String       @default("REGISTERED") // REGISTERED, PHLEB_DONE, DOC_DONE, LAB_DONE, COMPLETED
+  bloodCollected Boolean      @default(false)
+  urineCollected Boolean      @default(false)
   
-  vitals        Vitals?
-  examination   Examination?
-  labResults    LabResult[]
-  conclusion    Conclusion?
+  vitals         Vitals?
+  examination    Examination?
+  labResults     LabResult[]
+  conclusion     Conclusion?
   
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model Vitals {
   id         String   @id @default(cuid())
   employeeId String   @unique
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   height     Float?
   weight     Float?
   bmi        Float?
@@ -77,37 +90,38 @@ model Vitals {
 }
 
 model Examination {
-  id              String   @id @default(cuid())
-  employeeId      String   @unique
-  employee        Employee @relation(fields: [employeeId], references: [id])
-  pastHistory     String?
-  comorbidities   String?
-  eyeRight        String?
-  eyeLeft         String?
-  colorBlindness  String?
-  ent             String?
-  oral            String?
-  headNeck        String?
-  lungsChest      String?
-  cardiovascular  String?
-  skinVaricose    String?
+  id             String   @id @default(cuid())
+  employeeId     String   @unique
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  pastHistory    String?
+  comorbidities  String?
+  eyeRight       String?
+  eyeLeft        String?
+  colorBlindness String?
+  ent            String?
+  oral           String?
+  headNeck       String?
+  lungsChest     String?
+  cardiovascular String?
+  skinVaricose   String?
 }
 
 model LabResult {
-  id          String   @id @default(cuid())
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  testName    String
-  result      String?
-  unit        String?
-  flag        String?
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  testName   String
+  result     String?
+  unit       String?
+  flag       String?  // NORMAL, ABNORMAL, CRITICAL
 }
 
 model Conclusion {
   id          String   @id @default(cuid())
   employeeId  String   @unique
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  fitness     String   
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fitness     String   // FIT, UNFIT, TEMPORARILY_UNFIT
+  declaration String?  // Statutory FSSAI Form IX / Occupational Health text
   remarks     String?
   finalizedAt DateTime @default(now())
 }
