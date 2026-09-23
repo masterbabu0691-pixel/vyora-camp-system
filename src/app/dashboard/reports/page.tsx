@@ -78,8 +78,7 @@ export default function ClientReportsPage() {
       l.testName.toLowerCase().includes(testName.toLowerCase())
     );
     if (!test || !test.result) return "Pending";
-    // Returns result + unit (e.g., "14.2 g/dL")
-    return `${test.result} ${test.unit || ""}`.trim();
+    return test.unit ? `${test.result} ${test.unit}` : test.result;
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
@@ -97,18 +96,27 @@ export default function ClientReportsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
+      {/* 
+        BULLETPROOF BATCH PRINT CSS:
+        Isolates every selected employee into their own distinct 21cm x 27.7cm page.
+      */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: 21cm 27.7cm; margin: 0 !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; margin: 0; padding: 0; }
           body * { visibility: hidden; }
-          .print-container, .print-container * { visibility: visible; }
+          .print-wrapper, .print-wrapper * { visibility: visible; }
           .print-hide { display: none !important; }
           
-          .print-container { 
+          .print-wrapper {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
+            width: 100% !important;
+          }
+
+          .print-container { 
+            position: relative !important;
             width: 21cm !important; 
             height: 27.7cm !important; 
             max-height: 27.7cm !important;
@@ -117,10 +125,12 @@ export default function ClientReportsPage() {
             padding-left: ${marginLeft} !important; 
             padding-right: ${marginRight} !important; 
             box-sizing: border-box !important; 
-            page-break-after: always; 
+            page-break-after: always !important;
+            break-after: page !important;
             background: white;
-            margin: 0 !important;
+            margin: 0 auto !important;
             display: block !important;
+            overflow: hidden !important;
           }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
@@ -180,7 +190,7 @@ export default function ClientReportsPage() {
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Roster</p><p className="text-2xl font-black text-[#002642]">{total}</p></div>
             <div className="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200 text-center"><p className="text-xs font-bold text-green-700 uppercase tracking-wider">Fit</p><p className="text-2xl font-black text-green-700">{fitCount}</p></div>
             <div className="bg-yellow-50 p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Follow-Up</p><p className="text-2xl font-black text-yellow-700">{followUpCount}</p></div>
-            <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
+            <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-red-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
             <div className="bg-gray-100 p-4 rounded-xl shadow-sm border border-gray-300 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending</p><p className="text-2xl font-black text-gray-700">{pending}</p></div>
           </div>
         )}
@@ -223,8 +233,8 @@ export default function ClientReportsPage() {
         )}
       </div>
 
-      {/* PRINTABLE CONTAINER (Pulls exact Camp Date from Client Manager) */}
-      <div className="hidden print:block text-black bg-white">
+      {/* BATCH PRINTABLE CONTAINER WRAPPER */}
+      <div className="hidden print:block print-wrapper text-black bg-white">
         {employeesToPrint.map((emp: any) => {
           const fitness = emp.conclusion?.fitness || "FIT";
           const remarks = emp.conclusion?.remarks || "Clinically Fit for Duty";
