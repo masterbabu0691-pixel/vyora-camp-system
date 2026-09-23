@@ -15,11 +15,11 @@ export default function ClientReportsPage() {
     settingsData?.settings?.find((s: any) => s.settingKey === key)?.settingVal || fallback;
 
   const marginTop = getMargin('MARGIN_TOP', '4.5cm');
-  const marginBottom = getMargin('MARGIN_BOTTOM', '2.5cm');
+  const marginBottom = getMargin('MARGIN_BOTTOM', '2cm');
   const marginLeft = getMargin('MARGIN_LEFT', '1.5cm');
   const marginRight = getMargin('MARGIN_RIGHT', '1.5cm');
 
-  // 2. Fetch Employees
+  // 2. Fetch Employees for selected camp
   const { data: reportData, isLoading: reportsLoading } = useSWR(
     selectedCampId ? `/api/employees?campId=${selectedCampId}` : null, fetcher
   );
@@ -41,9 +41,9 @@ export default function ClientReportsPage() {
   const handlePrint = () => window.print();
 
   const getLab = (emp: any, testName: string) => {
-    if (!emp.labResults) return "-";
+    if (!emp.labResults) return "Pending";
     const test = emp.labResults.find((l: any) => l.testName.toLowerCase().includes(testName.toLowerCase()));
-    return test ? `${test.result || ""} ${test.unit || ""}`.trim() : "-";
+    return test ? `${test.result || ""} ${test.unit || ""}`.trim() : "Pending";
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
@@ -64,31 +64,42 @@ export default function ClientReportsPage() {
       
       {/* 
         DYNAMIC PRINT CSS: 
-        Directly injects the Super Admin database values into the CSS padding.
+        Exact 21cm x 27.7cm A4 frame with database-driven margins.
       */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: 21cm 27.7cm; margin: 0; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; margin: 0; padding: 0; }
+          body * { visibility: hidden; }
+          .print-container, .print-container * { visibility: visible; }
           .print-hide { display: none !important; }
           
           .print-container { 
+            position: relative !important;
             width: 21cm !important; 
-            height: 27.7cm !important; 
-            padding: ${marginTop} ${marginRight} ${marginBottom} ${marginLeft} !important;
-            box-sizing: border-box; 
+            min-height: 27.7cm !important; 
+            max-height: 27.7cm !important;
+            padding-top: ${marginTop} !important; 
+            padding-bottom: ${marginBottom} !important;
+            padding-left: ${marginLeft} !important; 
+            padding-right: ${marginRight} !important; 
+            box-sizing: border-box !important; 
             page-break-after: always; 
-            position: relative; 
             background: white;
+            margin: 0 auto !important;
+            display: block !important;
           }
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+          tr { page-break-inside: avoid; }
         }
       `}} />
 
       <div className="print-hide space-y-6">
         <div className="border-b pb-4 flex justify-between items-end">
           <div>
-            <h1 className="text-3xl font-bold text-[#002642]">Final Medical Reports</h1>
-            <p className="text-gray-500 mt-1">Select employees to batch print the 21x27.7cm summaries.</p>
+            <h1 className="text-3xl font-bold text-[#002642]">Client-Wise Medical Reports</h1>
+            <p className="text-gray-500 mt-1">Select client camps and batch print pristine single-page A4 summaries.</p>
           </div>
           <button 
             onClick={handlePrint}
@@ -97,23 +108,34 @@ export default function ClientReportsPage() {
               selectedEmployees.length > 0 ? "bg-[#008C8C] hover:bg-[#006b6b] text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >
-            🖨️ Print Selected ({selectedEmployees.length})
+            🖨️ Print Selected Reports ({selectedEmployees.length})
           </button>
         </div>
 
-        <div className="bg-[#002642] p-6 rounded-2xl shadow-md text-white">
-          <label className="block text-xs font-bold text-teal-300 mb-2 uppercase tracking-wider">Select Target Camp</label>
-          <select className="w-full p-3 rounded-xl text-gray-900 font-bold outline-none" value={selectedCampId} onChange={(e) => { setSelectedCampId(e.target.value); setSelectedEmployees([]); }}>
-            <option value="">-- Choose a Client & Camp --</option>
-            {clients.map((client: any) => client.camps.map((camp: any) => (
-              <option key={camp.id} value={camp.id}>{client.name} - {camp.campName}</option>
-            )))}
+        {/* Client-Wise Camp Distribution Selector */}
+        <div className="bg-[#002642] p-6 rounded-2xl shadow-md text-white space-y-3">
+          <label className="block text-xs font-bold text-teal-300 uppercase tracking-wider">Client Organization & Camp Distribution</label>
+          <select 
+            className="w-full p-3.5 rounded-xl text-gray-900 font-bold outline-none cursor-pointer" 
+            value={selectedCampId} 
+            onChange={(e) => { setSelectedCampId(e.target.value); setSelectedEmployees([]); }}
+          >
+            <option value="">-- Choose Client Organization & Camp --</option>
+            {clients.map((client: any) => (
+              <optgroup key={client.id} label={`🏢 Client: ${client.name} (${client.clientCode || 'CODE'})`}>
+                {client.camps?.map((camp: any) => (
+                  <option key={camp.id} value={camp.id}>
+                    ⛺ Camp: {camp.campName} — ({new Date(camp.campDate).toLocaleDateString()})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </div>
 
         {selectedCampId && !reportsLoading && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</p><p className="text-2xl font-black text-[#002642]">{total}</p></div>
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Roster</p><p className="text-2xl font-black text-[#002642]">{total}</p></div>
             <div className="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200 text-center"><p className="text-xs font-bold text-green-700 uppercase tracking-wider">Fit</p><p className="text-2xl font-black text-green-700">{fitCount}</p></div>
             <div className="bg-yellow-50 p-4 rounded-xl shadow-sm border border-yellow-200 text-center"><p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Follow-Up</p><p className="text-2xl font-black text-yellow-700">{followUpCount}</p></div>
             <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-red-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
@@ -123,21 +145,25 @@ export default function ClientReportsPage() {
 
         {selectedCampId && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+              <span className="font-bold text-[#002642] text-sm uppercase">Employees in Selected Camp</span>
+              <span className="text-xs text-gray-500 font-semibold">Click row to select/deselect for batch printing</span>
+            </div>
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50">
                   <th className="p-4 w-12 text-center"><input type="checkbox" className="w-4 h-4 cursor-pointer accent-[#008C8C]" checked={employees.length > 0 && selectedEmployees.length === employees.length} onChange={toggleSelectAll} /></th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Employee Name</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Employee Name & Role</th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fitness Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {reportsLoading ? <tr><td colSpan={4} className="p-12 text-center text-gray-400 font-bold">Loading...</td></tr> : employees.map((emp: any) => (
+                {reportsLoading ? <tr><td colSpan={4} className="p-12 text-center text-gray-400 font-bold">Loading Roster...</td></tr> : employees.map((emp: any) => (
                   <tr key={emp.id} className="hover:bg-teal-50/30 transition cursor-pointer" onClick={() => toggleEmployee(emp.id)}>
                     <td className="p-4 text-center"><input type="checkbox" className="w-4 h-4 pointer-events-none accent-[#008C8C]" checked={selectedEmployees.includes(emp.id)} readOnly /></td>
-                    <td className="p-4"><p className="font-bold text-[#002642]">{emp.name}</p><p className="text-xs text-gray-500">{emp.designation || "-"}</p></td>
-                    <td className="p-4"><p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p><p className="font-mono text-[11px] text-gray-400">SR: {emp.serialNo}</p></td>
+                    <td className="p-4"><p className="font-bold text-[#002642] uppercase">{emp.name}</p><p className="text-xs text-gray-500">{emp.department || "-"} | {emp.designation || "-"}</p></td>
+                    <td className="p-4"><p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p><p className="font-mono text-[11px] text-gray-400">SR: {emp.serialNo} {emp.empCode ? `| Code: ${emp.empCode}` : ""}</p></td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase ${
                         emp.conclusion?.fitness === 'FIT' ? 'bg-green-100 text-green-800' :
@@ -155,115 +181,94 @@ export default function ClientReportsPage() {
         )}
       </div>
 
+      {/* PRINTABLE CONTAINER (Using the exact pristine Review layout) */}
       <div className="hidden print:block text-black bg-white">
         {employeesToPrint.map((emp: any) => {
-          const rawRemarks = emp.conclusion?.remarks || "FIT FOR DUTY";
-          let displayRemark = rawRemarks;
-          let displayAdvice = "";
-          
-          if (rawRemarks.includes(" | Advice: ")) {
-            const parts = rawRemarks.split(" | Advice: ");
-            displayRemark = parts[0];
-            displayAdvice = parts[1];
-          }
+          const fitness = emp.conclusion?.fitness || "FIT";
+          const remarks = emp.conclusion?.remarks || "Clinically Fit for Duty";
 
           return (
-            <div key={emp.id} className="print-container text-[11px]">
+            <div key={emp.id} className="print-container bg-white text-[11px] text-gray-800">
               
-              <h2 className="text-center text-lg font-black uppercase underline underline-offset-4 mb-4 tracking-widest text-[#002642]">Medical Examination Report</h2>
-
-              <div className="border-2 border-black p-2 mb-3">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 font-semibold">
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Exam Date:</span> <span>{new Date().toLocaleDateString()}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Serial No:</span> <span>{emp.serialNo}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Client Name:</span> <span className="uppercase">{emp.camp?.client?.name}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Client Code:</span> <span className="uppercase">{emp.camp?.client?.clientCode || "-"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Name:</span> <span className="uppercase">{emp.name}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Age / Sex:</span> <span>{emp.age || "-"} Year / {emp.sex || "-"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Emp Code:</span> <span>{emp.empCode || "-"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Status:</span> <span>{emp.conclusion?.fitness || "FIT"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Department:</span> <span>{emp.department || "-"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Designation:</span> <span>{emp.designation || "-"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Email ID:</span> <span>{emp.email || "-"}</span></div>
-                  <div className="flex"><span className="w-28 font-bold text-gray-700">Contact No:</span> <span>{emp.contactNo || "-"}</span></div>
-                </div>
+              <div className="text-center mb-3">
+                <h2 className="text-lg font-black uppercase tracking-widest text-[#002642]">Medical Examination Report</h2>
+                <div className="w-12 h-0.5 bg-[#008C8C] mx-auto mt-1"></div>
               </div>
 
-              <div className="border-2 border-black mb-3">
-                <div className="grid grid-cols-6 divide-x divide-black border-b border-black text-center font-bold">
-                  <div className="p-1">Height: {emp.vitals?.height || "-"}</div>
-                  <div className="p-1">Weight: {emp.vitals?.weight || "-"}</div>
-                  <div className="p-1">BMI: {emp.vitals?.bmi || "-"}</div>
-                  <div className="p-1">Heart Rate: {emp.vitals?.heartRate || "-"}</div>
-                  <div className="p-1">SpO2 %: {emp.vitals?.spO2 || "-"}</div>
-                  <div className="p-1">BP: {emp.vitals?.bloodPress || "-"}</div>
-                </div>
-                <div className="grid grid-cols-2 divide-x divide-black border-b border-black">
-                  <div className="p-1.5 flex"><span className="w-28 font-bold text-gray-700">Past History:</span> <span>{emp.examination?.pastHistory || "Nil"}</span></div>
-                  <div className="p-1.5 flex"><span className="w-28 font-bold text-gray-700">Co-Morbidities:</span> <span>{emp.examination?.comorbidities || "Nil"}</span></div>
-                </div>
-                <div className="grid grid-cols-3 divide-x divide-black">
-                  <div className="p-1.5 flex bg-gray-100 font-bold justify-center items-center">Systematic Examination:</div>
-                  <div className="p-1.5 flex flex-col justify-center">
-                    <div className="flex"><span className="w-16 font-bold">Right:</span> <span>{emp.examination?.eyeRight || "6/6"}</span></div>
-                    <div className="flex"><span className="w-16 font-bold">Left:</span> <span>{emp.examination?.eyeLeft || "6/6"}</span></div>
-                  </div>
-                  <div className="p-1.5 flex items-center"><span className="w-28 font-bold">Color Blindness:</span> <span>{emp.examination?.colorBlindness || "Normal"}</span></div>
-                </div>
+              <p className="text-right text-[10px] font-semibold text-gray-600 mb-2">
+                Exam Date: {emp.createdAt ? new Date(emp.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+              </p>
+
+              {/* Demographics Grid */}
+              <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-[11px] mb-3 bg-gray-50/50 p-2.5 rounded border border-gray-100">
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Client Organization:</span> <span className="font-bold text-black uppercase">{emp.camp?.client?.name || "-"}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Serial No:</span> <span className="font-bold text-black">{emp.serialNo}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Name:</span> <span className="font-bold text-black uppercase">{emp.name}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Emp Code:</span> <span className="font-bold text-black">{emp.empCode || "-"}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Age / Sex:</span> <span className="font-bold text-black">{emp.age || "-"} Yrs / {emp.sex || "-"}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Department:</span> <span className="font-bold text-black">{emp.department || "-"}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Contact No:</span> <span className="font-bold text-black">{emp.contactNo || "-"}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Height / Weight:</span> <span className="font-bold text-black">{emp.vitals?.height || "-"} cm / {emp.vitals?.weight || "-"} kg</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5 col-span-2"><span className="font-semibold text-gray-600">BMI:</span> <span className="font-bold text-black">{emp.vitals?.bmi || "-"}</span></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-3 h-[8.5cm]">
-                <div className="border-2 border-black h-full">
-                  <div className="bg-gray-200 border-b-2 border-black p-1 font-bold text-center tracking-wider uppercase">Physical Examination</div>
-                  <div className="p-2 space-y-2">
-                    <div className="grid grid-cols-2"><span className="font-bold">Eyes:</span> <span>{emp.examination?.eyeRight ? "Normal" : "-"}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">ENT:</span> <span>{emp.examination?.ent || "Normal"}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Oral:</span> <span>{emp.examination?.oral || "Normal"}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Head & Neck:</span> <span>{emp.examination?.headNeck || "Normal"}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Lungs & Chest:</span> <span>{emp.examination?.lungsChest || "Clear"}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">CardioVascular:</span> <span>{emp.examination?.cardiovascular || "Normal S1 S2"}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Skin & Varicose Vein:</span> <span>{emp.examination?.skinVaricose || "Normal"}</span></div>
-                  </div>
-                </div>
-                <div className="border-2 border-black h-full">
-                  <div className="bg-gray-200 border-b-2 border-black p-1 font-bold text-center tracking-wider uppercase">Diagnostic Investigation</div>
-                  <div className="p-2 space-y-[0.35rem]">
-                    <div className="grid grid-cols-2"><span className="font-bold">Hb:</span> <span>{getLab(emp, "Hb")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">WBC:</span> <span>{getLab(emp, "WBC")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Platelets:</span> <span>{getLab(emp, "Platelets")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">ESR:</span> <span>{getLab(emp, "ESR")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">SGPT:</span> <span>{getLab(emp, "SGPT")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">S.Creatinine:</span> <span>{getLab(emp, "Creatinine")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Widal Profile:</span> <span>{getLab(emp, "Widal")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">Blood Group:</span> <span>{getLab(emp, "Blood Group")}</span></div>
-                    <div className="grid grid-cols-2"><span className="font-bold">RBS:</span> <span>{getLab(emp, "RBS")}</span></div>
-                    <div className="grid grid-cols-2 pt-2 mt-2 border-t border-dashed border-gray-400"><span className="font-bold text-[#002642]">Urine R/M:</span> <span>{getLab(emp, "Urine")}</span></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-2 border-black p-2 mb-8 flex flex-col gap-1">
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                {/* Medical History & Examination */}
                 <div>
-                  <span className="font-bold text-gray-700 w-36 inline-block">Conclusion / Remark:</span> 
-                  <span className="font-bold text-[#002642] uppercase">{displayRemark}</span>
+                  <h3 className="bg-gray-200 text-black px-2 py-1 font-bold text-[10px] mb-1.5 text-center border border-black uppercase">Medical History & Examination</h3>
+                  <table className="w-full text-[10px]">
+                    <tbody>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold w-1/2">Past History</td><td className="py-0.5 font-bold">{emp.examination?.pastHistory || "Nil"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Co-Morbidities</td><td className="py-0.5 font-bold">{emp.examination?.comorbidities || "Nil"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Heart Rate</td><td className="py-0.5 font-bold">{emp.vitals?.heartRate || "-"} bpm</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Blood Pressure</td><td className="py-0.5 font-bold">{emp.vitals?.bloodPress || "-"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">SpO2</td><td className="py-0.5 font-bold">{emp.vitals?.spO2 || "-"} %</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Eyes (R / L)</td><td className="py-0.5 font-bold">{emp.examination?.eyeRight || "6/6"} / {emp.examination?.eyeLeft || "6/6"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Color Blindness</td><td className="py-0.5 font-bold">{emp.examination?.colorBlindness || "Normal"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">ENT / Oral</td><td className="py-0.5 font-bold">{emp.examination?.ent || "Normal"} / {emp.examination?.oral || "Normal"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Lungs & Chest</td><td className="py-0.5 font-bold">{emp.examination?.lungsChest || "Clear"}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">CardioVascular</td><td className="py-0.5 font-bold">{emp.examination?.cardiovascular || "Normal S1 S2"}</td></tr>
+                    </tbody>
+                  </table>
                 </div>
-                {displayAdvice && (
-                  <div>
-                    <span className="font-bold text-gray-700 w-36 inline-block">Doctor's Advice:</span> 
-                    <span className="font-bold italic text-gray-800">{displayAdvice}</span>
-                  </div>
-                )}
+
+                {/* Blood Investigations */}
+                <div>
+                  <h3 className="bg-gray-200 text-black px-2 py-1 font-bold text-[10px] mb-1.5 text-center border border-black uppercase">Laboratory Investigations</h3>
+                  <table className="w-full text-[10px]">
+                    <tbody>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold w-1/2">Blood Group</td><td className="py-0.5 font-bold">{getLab(emp, 'Blood Group')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Hb</td><td className="py-0.5 font-bold">{getLab(emp, 'Hb')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">WBC</td><td className="py-0.5 font-bold">{getLab(emp, 'WBC')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Platelets</td><td className="py-0.5 font-bold">{getLab(emp, 'Platelets')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">ESR</td><td className="py-0.5 font-bold">{getLab(emp, 'ESR')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">SGPT</td><td className="py-0.5 font-bold">{getLab(emp, 'SGPT')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">S. Creatinine</td><td className="py-0.5 font-bold">{getLab(emp, 'Creatinine')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">RBS</td><td className="py-0.5 font-bold">{getLab(emp, 'RBS')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Widal Profile</td><td className="py-0.5 font-bold">{getLab(emp, 'Widal')}</td></tr>
+                      <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Urine R/M</td><td className="py-0.5 font-bold">{getLab(emp, 'Urine')}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
-              <div className="absolute bottom-[${marginBottom}] left-[${marginLeft}] right-[${marginRight}] flex justify-between items-end">
+              {/* Conclusion Section */}
+              <div className="border border-black p-2 mt-2 flex flex-col items-center bg-gray-50">
+                <h3 className="text-xs font-black mb-0.5 uppercase tracking-wider">Final Conclusion</h3>
+                <p className="text-base font-bold text-black mb-0.5">{fitness}</p>
+                <p className="text-[11px] font-semibold text-gray-700 uppercase italic">"{remarks}"</p>
+              </div>
+
+              {/* Footer Signature */}
+              <div className="mt-8 flex justify-between items-end">
                 <div className="text-center">
-                  <div className="border-b border-black w-40 mb-1"></div>
-                  <p className="font-bold">Candidate Signature</p>
+                  <div className="w-36 border-b border-black mb-1"></div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider">Candidate Signature</p>
                 </div>
                 <div className="text-center">
-                  <div className="border-b border-black w-48 mb-1"></div>
-                  <p className="font-bold uppercase">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"}</p>
-                  <p className="text-[9px] text-gray-500">Authorized Medical Examiner</p>
+                  <div className="w-36 border-b border-black mb-1"></div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider">Authorized Doctor Signature</p>
+                  <p className="text-[8px] text-gray-500 font-semibold">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"} (Vyora Healthcare)</p>
                 </div>
               </div>
 
