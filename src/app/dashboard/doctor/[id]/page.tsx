@@ -62,7 +62,7 @@ export default function DoctorEntryPage({ params }: { params: Promise<{ id: stri
   const handleSave = async () => {
     setSaving(true);
     
-    // SAFE NUMBER PARSER: Fixes the database crash by sending valid Nulls instead of NaNs
+    // SAFE NUMBER PARSER
     const safeNum = (val: string) => val === "" || isNaN(Number(val)) ? null : Number(val);
 
     const payload = {
@@ -83,25 +83,25 @@ export default function DoctorEntryPage({ params }: { params: Promise<{ id: stri
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
       });
       
-      const responseData = await res.json(); // Read the server response
+      const responseData = await res.json(); 
 
       if (res.ok) {
         alert("Clinical Examination saved successfully!");
         router.push("/dashboard/doctor");
       } else {
-        // Now it will show the EXACT database error on screen!
         alert("Server failed to save: " + (responseData.error || "Unknown Error"));
       }
     } catch (e) {
       alert("Network error. Failed to save.");
     }
+    setSaving(false);
+  };
 
   if (isLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading Patient File...</div>;
 
   return (
     <div className="max-w-7xl mx-auto h-[calc(100vh-100px)] flex flex-col gap-4">
       
-      {/* COMPACT HEADER */}
       <div className="bg-[#002642] p-4 rounded-xl shadow-md text-white flex justify-between items-center shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-wide">Doctor Examination Panel</h1>
@@ -115,10 +115,8 @@ export default function DoctorEntryPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* DENSE 3-COLUMN NO-SCROLL LAYOUT */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 min-h-0 overflow-y-auto pb-4">
         
-        {/* COLUMN 1: VITALS (Blue Tint) */}
         <div className="bg-blue-50/50 p-4 rounded-xl shadow-sm border border-blue-100 h-fit">
           <h2 className="text-xs font-black text-blue-800 uppercase tracking-wider border-b border-blue-200 pb-2 mb-3">1. Vitals & Measurements</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -131,7 +129,6 @@ export default function DoctorEntryPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* COLUMN 2: HISTORY & EYES (Amber Tint) */}
         <div className="bg-amber-50/50 p-4 rounded-xl shadow-sm border border-amber-100 h-fit space-y-4">
           <div>
             <h2 className="text-xs font-black text-amber-800 uppercase tracking-wider border-b border-amber-200 pb-2 mb-3">2. Medical History</h2>
@@ -150,7 +147,6 @@ export default function DoctorEntryPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* COLUMN 3: SYSTEMIC (Teal Tint) */}
         <div className="bg-teal-50/50 p-4 rounded-xl shadow-sm border border-teal-100 h-fit">
           <h2 className="text-xs font-black text-teal-800 uppercase tracking-wider border-b border-teal-200 pb-2 mb-3">4. Systemic Examination</h2>
           <div className="space-y-2">
