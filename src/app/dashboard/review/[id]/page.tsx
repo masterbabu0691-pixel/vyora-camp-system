@@ -55,12 +55,18 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     <div className="max-w-5xl mx-auto space-y-6">
       
       {/* 
-        ADVANCED PRINT CSS: 
-        Forces 21x27.7cm. Uses table headers to repeat demographics on page 2.
+        FOOLPROOF PRINT CSS: 
+        Uses native @page margins instead of absolute positioning to guarantee it NEVER cuts off the edges.
       */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          @page { size: 21cm 27.7cm; margin: 0; }
+          @page { 
+            size: 21cm 27.7cm; 
+            margin-top: 4.5cm; /* Clears your physical letterhead header */
+            margin-bottom: 2cm; 
+            margin-left: 1.5cm; /* Guaranteed safe side margin */
+            margin-right: 1.5cm; /* Guaranteed safe side margin */
+          }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
           body * { visibility: hidden; }
           #printable-report, #printable-report * { visibility: visible; }
@@ -68,20 +74,15 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             position: absolute;
             left: 0;
             top: 0;
-            width: 21cm;
-            padding-left: 2 cm;
-            padding-right: 2 cm;
+            width: 100%;
             background: white;
-            margin: 0;
           }
-          /* This forces the thead (demographics) to repeat on every printed page */
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
           tr { page-break-inside: avoid; }
         }
       `}} />
 
-      {/* 🛑 ACTION BAR (Hidden on Print) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 print:hidden flex flex-col gap-4">
         <h2 className="text-lg font-bold text-[#002642] border-b pb-2">Medical Sign-Off Panel</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
@@ -100,7 +101,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Doctor's Advice (Optional)</label>
-            <input type="text" className="w-full border p-2.5 rounded-lg font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g. Drink warm water, Use glasses..." value={advice} onChange={e => setAdvice(e.target.value)} />
+            <input type="text" className="w-full border p-2.5 rounded-lg font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-teal-500" placeholder="e.g. Drink warm water..." value={advice} onChange={e => setAdvice(e.target.value)} />
           </div>
         </div>
         <div className="flex justify-end gap-3 mt-2 border-t pt-4">
@@ -113,22 +114,16 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
-      {/* --- REPEATING TABLE-BASED PRINTABLE REPORT --- */}
+      {/* The Printable Container is now 100% fluid to let the browser control the edges */}
       <table id="printable-report" className="w-full bg-white text-[11px] text-gray-800 print:text-[10px] print:leading-snug shadow-xl print:shadow-none border-none">
-        
-        {/* 1. TABLE HEADER (Repeats on Page 2 automatically) */}
         <thead>
           <tr>
             <td>
-              {/* 4.5cm Invisible Spacer for physical letterhead (Repeats on every page) */}
-              <div className="h-0 print:h-[4.5cm] w-full"></div>
-
               <div className="text-center print:mb-2 mb-6">
                 <h2 className="text-lg font-black uppercase tracking-widest text-[#002642]">Medical Examination Report</h2>
                 <div className="w-12 h-0.5 bg-[#008C8C] mx-auto mt-1"></div>
               </div>
 
-              {/* Minimal Demographics Section */}
               <div className="bg-gray-50/50 rounded-lg print:p-2.5 p-4 print:mb-3 mb-6 border border-gray-100">
                 <div className="grid grid-cols-3 gap-y-2 gap-x-4">
                   <div><span className="text-gray-500 block text-[8px] uppercase tracking-wider">Patient Name</span><span className="font-bold text-xs uppercase text-black">{emp?.name}</span></div>
@@ -148,11 +143,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </tr>
         </thead>
 
-        {/* 2. TABLE BODY (The Main Content) */}
         <tbody>
           <tr>
             <td>
-              {/* Vitals & History (Compressed for print) */}
               <div className="print:mb-3 mb-6">
                 <h3 className="text-[#008C8C] text-[9px] font-bold uppercase tracking-widest mb-1.5 border-b border-gray-200 pb-0.5">Vitals & Medical History</h3>
                 <div className="grid grid-cols-6 gap-2 mb-2">
@@ -172,7 +165,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 </div>
               </div>
 
-              {/* 2-Column Split: Clinical & Diagnostics */}
               <div className="grid grid-cols-2 gap-6 print:mb-4 mb-8">
                 <div>
                   <h3 className="text-[#008C8C] text-[9px] font-bold uppercase tracking-widest mb-1.5 border-b border-gray-200 pb-0.5">Systemic Examination</h3>
@@ -204,7 +196,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 </div>
               </div>
 
-              {/* Dynamic Conclusion Block */}
               <div className={`p-4 rounded-lg border-l-4 print:mb-2 mb-6 ${
                 fitness === "FIT" ? "bg-green-50 border-green-500" :
                 fitness === "UNFIT" ? "bg-red-50 border-red-500" : "bg-yellow-50 border-yellow-500"
@@ -234,11 +225,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </tr>
         </tbody>
 
-        {/* 3. TABLE FOOTER (Locks Signatures to the bottom of the content) */}
         <tfoot>
           <tr>
             <td>
-              <div className="mt-8 pt-4 flex justify-between items-end print:pb-[2cm]">
+              <div className="mt-8 pt-4 flex justify-between items-end">
                 <div className="text-center">
                   <div className="border-b border-gray-400 w-32 mb-1.5"></div>
                   <p className="font-bold text-gray-600 text-[9px] uppercase tracking-wider">Candidate Signature</p>
@@ -252,7 +242,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             </td>
           </tr>
         </tfoot>
-
       </table>
     </div>
   );
