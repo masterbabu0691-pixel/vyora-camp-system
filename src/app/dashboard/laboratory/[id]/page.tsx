@@ -5,7 +5,6 @@ import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-// The strict 10 tests required by the final letterhead report
 const REQUIRED_TESTS = [
   { key: "Blood Group", label: "Blood Group", placeholder: "e.g., O+ve", unit: "" },
   { key: "Hb", label: "Hemoglobin (Hb)", placeholder: "e.g., 14.5", unit: "g/dL" },
@@ -35,26 +34,34 @@ export default function LabEntryPage({ params }: { params: Promise<{ id: string 
   const handleSave = async () => {
     setSaving(true);
     
-    // Format payload to strictly match what the Final Report expects
+    // Filter out blank inputs
     const labResults = REQUIRED_TESTS.map(test => ({
-      testName: test.key, // Crucial: Locks the exact string so getLab() works flawlessly
+      testName: test.key,
       result: results[test.key] || "",
       unit: test.unit,
       flag: "NORMAL" 
-    })).filter(test => test.result !== ""); // Only save tests that have data entered
+    })).filter(test => test.result !== ""); 
 
-    const res = await fetch("/api/laboratory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeId, labResults })
-    });
+    try {
+      const res = await fetch("/api/laboratory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId, labResults })
+      });
 
-    if (res.ok) {
-      alert("Laboratory records locked and saved successfully!");
-      router.push("/dashboard/laboratory");
-    } else {
-      alert("Failed to save lab records.");
+      const responseData = await res.json();
+
+      if (res.ok) {
+        alert("Laboratory records locked and saved successfully!");
+        router.push("/dashboard/laboratory");
+      } else {
+        // EXACT ERROR SHOWN HERE
+        alert("Server failed to save: " + (responseData.error || "Unknown Error. Check backend logs."));
+      }
+    } catch (error) {
+      alert("Network Error: Failed to contact the server.");
     }
+    
     setSaving(false);
   };
 
@@ -63,8 +70,6 @@ export default function LabEntryPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      
-      {/* HEADER */}
       <div className="bg-[#002642] p-6 rounded-2xl shadow-md text-white flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-wide">Laboratory Investigation Panel</h1>
@@ -76,7 +81,6 @@ export default function LabEntryPage({ params }: { params: Promise<{ id: string 
         </div>
       </div>
 
-      {/* FIXED 10-TEST FORM */}
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
         <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-3 mb-6">Diagnostic Data Entry</h2>
         
@@ -86,30 +90,24 @@ export default function LabEntryPage({ params }: { params: Promise<{ id: string 
               <label className="text-xs font-bold text-[#002642] uppercase tracking-wider mb-2">
                 {test.label} {test.unit && <span className="text-gray-400 normal-case tracking-normal">({test.unit})</span>}
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder={test.placeholder}
-                  className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-gray-900 outline-none focus:border-[#008C8C] focus:ring-1 focus:ring-[#008C8C] transition"
-                  value={results[test.key] || ""}
-                  onChange={(e) => handleInputChange(test.key, e.target.value)}
-                />
-              </div>
+              <input
+                type="text"
+                placeholder={test.placeholder}
+                className="w-full border-2 border-gray-100 p-3 rounded-xl font-bold text-gray-900 outline-none focus:border-[#008C8C] focus:ring-1 focus:ring-[#008C8C] transition"
+                value={results[test.key] || ""}
+                onChange={(e) => handleInputChange(test.key, e.target.value)}
+              />
             </div>
           ))}
         </div>
 
-        {/* ACTION BUTTONS */}
         <div className="mt-10 pt-6 border-t flex justify-end gap-4">
-          <button onClick={() => router.push('/dashboard/laboratory')} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">
-            Cancel
-          </button>
+          <button onClick={() => router.push('/dashboard/laboratory')} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="bg-[#008C8C] text-white px-8 py-3 rounded-xl font-bold shadow-md hover:bg-teal-600 transition disabled:opacity-50">
-            {saving ? "Saving Data..." : "Submit to Doctor Review Queue"}
+            {saving ? "Saving Data..." : "Submit to Doctor Review"}
           </button>
         </div>
       </div>
-
     </div>
   );
 }
