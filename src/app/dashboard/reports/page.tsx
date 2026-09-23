@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
+import * as XLSX from 'xlsx';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -40,6 +41,37 @@ export default function ClientReportsPage() {
 
   const handlePrint = () => window.print();
 
+  // Excel Export Function for the Selected Camp
+  const handleExportExcel = () => {
+    if (!reportData?.employees || reportData.employees.length === 0) {
+      alert("No employee data available to export.");
+      return;
+    }
+
+    const exportRows = reportData.employees.map((emp: any, index: number) => ({
+      "Sr No": emp.serialNo || index + 1,
+      "UHID": emp.uhid,
+      "Employee Name": emp.name,
+      "Emp Code": emp.empCode || "-",
+      "Department": emp.department || "-",
+      "Designation": emp.designation || "-",
+      "Age": emp.age || "-",
+      "Gender": emp.sex || "-",
+      "Contact": emp.contactNo || "-",
+      "Height (cm)": emp.vitals?.height || "-",
+      "Weight (kg)": emp.vitals?.weight || "-",
+      "BMI": emp.vitals?.bmi || "-",
+      "BP": emp.vitals?.bloodPress || "-",
+      "Fitness Status": emp.conclusion?.fitness || emp.status,
+      "Clinical Remarks": emp.conclusion?.remarks || "-"
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Camp_Report");
+    XLSX.writeFile(workbook, `Vyora_Camp_Report_${selectedCampId}.xlsx`);
+  };
+
   const getLab = (emp: any, testName: string) => {
     if (!emp.labResults) return "Pending";
     const test = emp.labResults.find((l: any) => l.testName.toLowerCase().includes(testName.toLowerCase()));
@@ -51,7 +83,6 @@ export default function ClientReportsPage() {
   const employees = reportData?.employees || [];
   const employeesToPrint = employees.filter((emp: any) => selectedEmployees.includes(emp.id));
 
-  // Automated Dashboard Statistics
   const total = employees.length;
   const completed = employees.filter((e: any) => e.conclusion?.fitness).length;
   const pending = total - completed;
@@ -62,10 +93,6 @@ export default function ClientReportsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* 
-        EXACT A4 PRINT CSS MATCHING REVIEW PAGE:
-        Forces 21cm x 27.7cm with proper box-sizing and database margins.
-      */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: 21cm 27.7cm; margin: 0 !important; }
@@ -98,25 +125,34 @@ export default function ClientReportsPage() {
       `}} />
 
       <div className="print-hide space-y-6">
-        <div className="border-b pb-4 flex justify-between items-end">
+        <div className="border-b pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#002642]">Client-Wise Medical Reports</h1>
-            <p className="text-gray-500 mt-1">Select client camps and batch print pristine single-page A4 summaries.</p>
+            <h1 className="text-3xl font-bold text-[#002642]">Client-Wise Medical Reports & Export</h1>
+            <p className="text-gray-500 mt-1">Manage camp rosters, export client Excel sheets, and batch print certificates.</p>
           </div>
-          <button 
-            onClick={handlePrint}
-            disabled={selectedEmployees.length === 0}
-            className={`px-6 py-2.5 rounded-xl font-bold shadow-md transition flex items-center gap-2 ${
-              selectedEmployees.length > 0 ? "bg-[#008C8C] hover:bg-[#006b6b] text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            🖨️ Print Selected Reports ({selectedEmployees.length})
-          </button>
+          <div className="flex gap-3">
+            <button 
+              onClick={handleExportExcel}
+              disabled={!selectedCampId || employees.length === 0}
+              className="px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow transition flex items-center gap-2 disabled:opacity-50"
+            >
+              📊 Export Excel
+            </button>
+            <button 
+              onClick={handlePrint}
+              disabled={selectedEmployees.length === 0}
+              className={`px-5 py-2.5 rounded-xl font-bold shadow transition flex items-center gap-2 ${
+                selectedEmployees.length > 0 ? "bg-[#008C8C] hover:bg-[#006b6b] text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              🖨️ Print Selected ({selectedEmployees.length})
+            </button>
+          </div>
         </div>
 
         {/* Client-Wise Camp Distribution Selector */}
         <div className="bg-[#002642] p-6 rounded-2xl shadow-md text-white space-y-3">
-          <label className="block text-xs font-bold text-teal-300 uppercase tracking-wider">Client Organization & Camp Distribution</label>
+          <label className="block text-xs font-bold text-teal-300 uppercase tracking-wider">Select Client Organization & Camp</label>
           <select 
             className="w-full p-3.5 rounded-xl text-gray-900 font-bold outline-none cursor-pointer" 
             value={selectedCampId} 
@@ -127,7 +163,7 @@ export default function ClientReportsPage() {
               <optgroup key={client.id} label={`🏢 Client: ${client.name} (${client.clientCode || 'CODE'})`}>
                 {client.camps?.map((camp: any) => (
                   <option key={camp.id} value={camp.id}>
-                    ⛺ Camp: {camp.campName} — ({new Date(camp.campDate).toLocaleDateString()})
+                    ⛺ Camp: {camp.campName} — Date: ({new Date(camp.campDate).toLocaleDateString()})
                   </option>
                 ))}
               </optgroup>
@@ -139,8 +175,8 @@ export default function ClientReportsPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Roster</p><p className="text-2xl font-black text-[#002642]">{total}</p></div>
             <div className="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200 text-center"><p className="text-xs font-bold text-green-700 uppercase tracking-wider">Fit</p><p className="text-2xl font-black text-green-700">{fitCount}</p></div>
-            <div className="bg-yellow-50 p-4 rounded-xl shadow-sm border border-yellow-200 text-center"><p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Follow-Up</p><p className="text-2xl font-black text-yellow-700">{followUpCount}</p></div>
-            <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-red-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
+            <div className="bg-yellow-50 p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Follow-Up</p><p className="text-2xl font-black text-yellow-700">{followUpCount}</p></div>
+            <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
             <div className="bg-gray-100 p-4 rounded-xl shadow-sm border border-gray-300 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending</p><p className="text-2xl font-black text-gray-700">{pending}</p></div>
           </div>
         )}
@@ -156,7 +192,7 @@ export default function ClientReportsPage() {
                 <tr className="border-b border-gray-200 bg-gray-50/50">
                   <th className="p-4 w-12 text-center"><input type="checkbox" className="w-4 h-4 cursor-pointer accent-[#008C8C]" checked={employees.length > 0 && selectedEmployees.length === employees.length} onChange={toggleSelectAll} /></th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Employee Name & Role</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers & Sr No</th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fitness Status</th>
                 </tr>
               </thead>
@@ -165,7 +201,7 @@ export default function ClientReportsPage() {
                   <tr key={emp.id} className="hover:bg-teal-50/30 transition cursor-pointer" onClick={() => toggleEmployee(emp.id)}>
                     <td className="p-4 text-center"><input type="checkbox" className="w-4 h-4 pointer-events-none accent-[#008C8C]" checked={selectedEmployees.includes(emp.id)} readOnly /></td>
                     <td className="p-4"><p className="font-bold text-[#002642] uppercase">{emp.name}</p><p className="text-xs text-gray-500">{emp.department || "-"} | {emp.designation || "-"}</p></td>
-                    <td className="p-4"><p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p><p className="font-mono text-[11px] text-gray-400">SR: {emp.serialNo} {emp.empCode ? `| Code: ${emp.empCode}` : ""}</p></td>
+                    <td className="p-4"><p className="font-mono text-xs font-bold text-[#008C8C]">SR: {emp.serialNo}</p><p className="font-mono text-[11px] text-gray-400">UHID: {emp.uhid}</p></td>
                     <td className="p-4">
                       <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase ${
                         emp.conclusion?.fitness === 'FIT' ? 'bg-green-100 text-green-800' :
@@ -183,11 +219,12 @@ export default function ClientReportsPage() {
         )}
       </div>
 
-      {/* PRINTABLE CONTAINER (Exact match to individual review layout) */}
+      {/* PRINTABLE CONTAINER (Pulls exact Camp Date from Client Manager) */}
       <div className="hidden print:block text-black bg-white">
         {employeesToPrint.map((emp: any) => {
           const fitness = emp.conclusion?.fitness || "FIT";
           const remarks = emp.conclusion?.remarks || "Clinically Fit for Duty";
+          const exactCampDate = emp.camp?.campDate ? new Date(emp.camp.campDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
 
           return (
             <div key={emp.id} className="print-container bg-white text-[11px] text-gray-800">
@@ -198,13 +235,13 @@ export default function ClientReportsPage() {
               </div>
 
               <p className="text-right text-[10px] font-semibold text-gray-600 mb-2">
-                Exam Date: {emp.createdAt ? new Date(emp.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+                Exam Date: {exactCampDate}
               </p>
 
               {/* Demographics Grid */}
               <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-[11px] mb-3 bg-gray-50/50 p-2.5 rounded border border-gray-100">
                 <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Client Organization:</span> <span className="font-bold text-black uppercase">{emp.camp?.client?.name || "-"}</span></div>
-                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Serial No:</span> <span className="font-bold text-black">{emp.serialNo}</span></div>
+                <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Serial No:</span> <span className="font-bold text-[#008C8C]">SR-{emp.serialNo}</span></div>
                 <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Name:</span> <span className="font-bold text-black uppercase">{emp.name}</span></div>
                 <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Emp Code:</span> <span className="font-bold text-black">{emp.empCode || "-"}</span></div>
                 <div className="grid grid-cols-2 border-b border-dashed py-0.5"><span className="font-semibold text-gray-600">Age / Sex:</span> <span className="font-bold text-black">{emp.age || "-"} Yrs / {emp.sex || "-"}</span></div>
