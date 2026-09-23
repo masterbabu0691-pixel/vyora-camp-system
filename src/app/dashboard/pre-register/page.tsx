@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx'; // Import is strictly at the top
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
-export default function PreRegistrationPage(): import("react").JSX.Element {
+export default function PreRegistrationPage() {
   const { data: clientData, isLoading: clientsLoading } = useSWR('/api/clients', fetcher);
   const [selectedCampId, setSelectedCampId] = useState("");
   const [saving, setSaving] = useState(false);
@@ -35,65 +35,29 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
     setSaving(false);
   };
 
-  // EXCEL BULK UPLOAD HANDLER (CLEANED)
-  import * as XLSX from "xlsx";
+  // CLEAN EXCEL UPLOAD HANDLER
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-// ... inside your component
-
-const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  
-  // CRITICAL FIX: Use ArrayBuffer instead of BinaryString for modern .xlsx files
-  reader.onload = (event) => {
-    try {
-      const data = new Uint8Array(event.target?.result as ArrayBuffer);
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      
-      // Convert to JSON and map the data precisely
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet);
-      
-      const mappedData = json.map((row) => ({
-        name: row["Name"] || row["Patient Name"] || "",
-        age: row["Age"] ? parseInt(row["Age"]) : null,
-        sex: row["Sex"] || row["Gender"] || "",
-        empCode: row["Emp Code"] || row["Employee ID"] || "",
-        contactNo: row["Contact"] || row["Phone"]?.toString() || "",
-        department: row["Department"] || "",
-        designation: row["Designation"] || "",
-        email: row["Email"] || "",
-      }));
-
-      setExcelData(mappedData); // Or whatever state you use to hold the preview
-    } catch (error) {
-      alert("Failed to parse Excel file. Please ensure it is a valid .xlsx format.");
-    }
-  };
-
-  reader.readAsArrayBuffer(file);
-};
     setUploading(true);
 
     try {
-      // 1. Parse Excel File Natively
+      // Modern ArrayBuffer Parser (Guaranteed to work with new .xlsx files)
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer); 
+      const workbook = XLSX.read(arrayBuffer, { type: "array" }); 
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      // 2. Map to Database Format
+      // Map Excel Columns to Database Format
       const mappedEmployees = jsonData.map((row: any) => ({
-        name: row['Name'] || row['Employee Name'] || row['Full Name'] || '',
-        empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '',
+        name: row['Name'] || row['Employee Name'] || row['Patient Name'] || row['Full Name'] || '',
+        empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Employee ID'] || row['Emp ID'] || '',
         department: row['Department'] || row['Dept'] || '',
         designation: row['Designation'] || row['Role'] || row['Job Role'] || '',
         age: row['Age'] ? parseInt(row['Age']) : null,
         sex: row['Sex'] || row['Gender'] || '',
-        contactNo: row['Contact'] || row['Mobile'] || row['Phone'] || ''
+        contactNo: row['Contact'] || row['Mobile'] || row['Phone']?.toString() || ''
       })).filter((emp: any) => emp.name && String(emp.name).trim() !== '');
 
       if (mappedEmployees.length === 0) {
@@ -103,37 +67,43 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         return;
       }
 
-      // 3. Send to Neon Database
-      try {
-        const response = await fetch('/api/employees/bulk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
-        });
+      // Send Bulk Data to Database
+      const response = await fetch('/api/employees/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campId: selectedCampId, employees: mappedEmployees }),
+      });
 
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error(`Server returned a 500 Error. Prisma schema might be out of sync.`);
-        }
-
-        const result = await response.json();
-        if (result.success) {
-          alert(`Successfully uploaded ${result.count} employees!`);
-          refreshEmployees();
-        } else {
-          alert("Database Error: " + (result.error || "Upload failed."));
-        }
-      } catch (dbError: any) {
-        console.error("Database Save Error:", dbError);
-        alert("Excel parsed successfully, but failed to save to database: " + dbError.message);
+      const result = await response.json();
+      if (response.ok && result.success) {
+        alert(`Successfully uploaded ${result.count} employees!`);
+        refreshEmployees();
+      } else {
+        alert("Database Error: " + (result.error || "Upload failed."));
       }
 
     } catch (excelError: any) {
       console.error("Excel Parse Error:", excelError);
-      alert("Failed to read the Excel file itself. Close the file if it is open in Excel and try again.");
+      alert("Failed to read the Excel file. Check format.");
     } finally {
       setUploading(false);
       e.target.value = ''; 
+    }
+  };
+
+  // DELETE FUNCTIONALITY FOR DUPLICATES
+  const handleDelete = async (empId: string) => {
+    if (confirm("Are you sure you want to delete this employee? This cannot be undone.")) {
+      try {
+        const res = await fetch(`/api/employees?id=${empId}`, { method: 'DELETE' });
+        if (res.ok) {
+          refreshEmployees();
+        } else {
+          alert("Failed to delete employee.");
+        }
+      } catch (err) {
+        alert("Network error while deleting.");
+      }
     }
   };
 
@@ -209,10 +179,10 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
             </div>
 
-            <div className="overflow-y-auto max-h-125 border-t pt-2">
+            <div className="overflow-y-auto max-h-[500px] border-t pt-2">
               <ul className="divide-y divide-gray-100">
                 {empData?.employees?.map((emp: any) => (
-                  <li key={emp.id} className="py-3 flex justify-between items-center">
+                  <li key={emp.id} className="py-3 flex justify-between items-center group">
                     <div>
                       <p className="font-bold text-[#002642]">
                         {emp.name} 
@@ -223,10 +193,14 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                       <p className="text-xs text-gray-500">
                         Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span> | 📞 {emp.contactNo || "No Contact"}
                       </p>
-                      <p className="text-[11px] text-teal-700 font-semibold font-mono mt-0.5">
-                        {emp.uhid || ""} {emp.certificateNo ? `| Cert: ${emp.certificateNo}` : ""}
-                      </p>
                     </div>
+                    {/* HOVER-TO-DELETE BUTTON */}
+                    <button 
+                      onClick={() => handleDelete(emp.id)}
+                      className="opacity-0 group-hover:opacity-100 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition"
+                    >
+                      🗑️ Delete
+                    </button>
                   </li>
                 ))}
                 {(!empData?.employees || empData.employees.length === 0) && (
