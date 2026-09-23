@@ -82,17 +82,19 @@ export default function DoctorEntryPage({ params }: { params: Promise<{ id: stri
       const res = await fetch("/api/doctor", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
       });
+      
+      const responseData = await res.json(); // Read the server response
+
       if (res.ok) {
         alert("Clinical Examination saved successfully!");
         router.push("/dashboard/doctor");
       } else {
-        alert("Server failed to save. Ensure database schema is synced.");
+        // Now it will show the EXACT database error on screen!
+        alert("Server failed to save: " + (responseData.error || "Unknown Error"));
       }
     } catch (e) {
       alert("Network error. Failed to save.");
     }
-    setSaving(false);
-  };
 
   if (isLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading Patient File...</div>;
 

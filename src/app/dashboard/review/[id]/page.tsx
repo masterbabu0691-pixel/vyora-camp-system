@@ -56,27 +56,31 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       
       {/* 
         FOOLPROOF PRINT CSS: 
-        Uses native @page margins instead of absolute positioning to guarantee it NEVER cuts off the edges.
+        Uses native A4 sizing to stop Chrome from zooming/scaling the page.
+        Locks the report width to exactly 21cm with strict 1.5cm safe margins.
       */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { 
-            size: 21cm 27.7cm; 
-            margin-top: 4.5cm; /* Clears your physical letterhead header */
-            margin-bottom: 2cm; 
-            margin-left: 1.5cm; /* Guaranteed safe side margin */
-            margin-right: 1.5cm; /* Guaranteed safe side margin */
+            size: A4 portrait; 
+            margin: 0 !important; 
           }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; margin: 0; padding: 0; }
           body * { visibility: hidden; }
           #printable-report, #printable-report * { visibility: visible; }
           #printable-report {
             position: absolute;
             left: 0;
             top: 0;
-            width: 100%;
+            width: 21cm !important;
+            max-width: 21cm !important;
+            padding-left: 1.5cm; /* Bulletproof safe margin */
+            padding-right: 1.5cm; /* Bulletproof safe margin */
+            box-sizing: border-box;
             background: white;
+            margin: 0;
           }
+          .letterhead-gap { height: 4.5cm !important; }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
           tr { page-break-inside: avoid; }
