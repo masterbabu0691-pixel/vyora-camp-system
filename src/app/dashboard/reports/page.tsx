@@ -210,7 +210,7 @@ export default function ClientReportsPage() {
               </div>
               <div className="text-center">
                 <div className="border-b border-black w-48 mb-1"></div>
-                <p className="font-bold uppercase">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"}</p>
+                <p className="font-bold uppercase">Dr. {emp.camp?.leadDoctor || "Dr.Ronaksinh Solanki"}</p>
                 <p className="text-[9px] text-gray-500">Authorized Medical Examiner / Reg No.</p>
               </div>
             </div>
