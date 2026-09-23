@@ -69,8 +69,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             left: 0;
             top: 0;
             width: 21cm;
-            padding-left: 1.5cm;
-            padding-right: 1.5cm;
+            padding-left: 2 cm;
+            padding-right: 2 cm;
             background: white;
             margin: 0;
           }
