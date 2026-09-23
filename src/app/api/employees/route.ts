@@ -40,10 +40,15 @@ export async function GET(request: Request) {
 
     const employees = await prisma.employee.findMany({
       where: whereClause,
-      include: { camp: { include: { client: true } } },
-      orderBy: { createdAt: 'desc' }
+      include: { 
+        camp: { include: { client: true } },
+        vitals: true,
+        examination: true,
+        labResults: true,
+        conclusion: true
+      },
+      orderBy: { serialNo: 'asc' }
     });
-
     return NextResponse.json({ employees });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
