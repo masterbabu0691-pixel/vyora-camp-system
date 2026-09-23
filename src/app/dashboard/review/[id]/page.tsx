@@ -55,14 +55,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     <div className="max-w-5xl mx-auto space-y-6">
       
       {/* 
-        FOOLPROOF PRINT CSS: 
-        Uses native A4 sizing to stop Chrome from zooming/scaling the page.
-        Locks the report width to exactly 21cm with strict 1.5cm safe margins.
-      */}
-      {/* 
         A4 LETTERHEAD PRINT CSS: 
-        Forces A4 Paper (21x29.7cm), but restricts content to 21x27.7cm.
-        The top 4.5cm is reserved for your pre-printed logo.
+        Uses native page sizing with clean padding to prevent side clipping.
+        Reserves the top 4.5cm for physical pre-printed letterhead logos.
       */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
@@ -70,24 +65,29 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             size: A4 portrait; 
             margin: 0 !important; 
           }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; margin: 0; padding: 0; }
+          body { 
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+            background: white; 
+            margin: 0; 
+            padding: 0; 
+          }
           body * { visibility: hidden; }
           #printable-report, #printable-report * { visibility: visible; }
+          
           #printable-report {
-            position: absolute;
-            left: 0;
-            top: 0;
+            position: relative !important;
             width: 21cm !important;
-            height: 27.7cm !important; /* Locks exact letterhead size inside A4 */
+            min-height: 27.7cm !important;
             max-height: 27.7cm !important;
-            padding-top: 4.5cm !important; /* Letterhead logo gap */
+            padding-top: 4.5cm !important; /* Physical letterhead header gap */
             padding-bottom: 2cm !important;
             padding-left: 1.5cm !important; 
             padding-right: 1.5cm !important; 
-            box-sizing: border-box;
+            box-sizing: border-box !important;
             background: white;
-            margin: 0;
-            overflow: hidden;
+            margin: 0 auto !important;
+            display: block !important;
           }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
@@ -126,7 +126,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
-      {/* The Printable Container is now 100% fluid to let the browser control the edges */}
+      {/* Printable Report Wrapper */}
       <table id="printable-report" className="w-full bg-white text-[11px] text-gray-800 print:text-[10px] print:leading-snug shadow-xl print:shadow-none border-none">
         <thead>
           <tr>
