@@ -1,123 +1,66 @@
 "use client";
-import { useState } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function PhlebotomyPage() {
-  const { data, mutate, isLoading } = useSWR('/api/employees?queue=phlebo', fetcher, { refreshInterval: 5000 });
-  const [search, setSearch] = useState("");
-  const [savingId, setSavingId] = useState<string | null>(null);
+export default function PhlebotomyQueuePage() {
+  // CRITICAL FIX: Explicitly asks the backend for the "phlebotomy" stage only
+  const { data, isLoading } = useSWR('/api/employees?queue=phlebotomy', fetcher, { refreshInterval: 5000 });
 
-  // Track checkboxes for each patient row
-  const [collections, setCollections] = useState<Record<string, { blood: boolean, urine: boolean }>>({});
-
-  if (isLoading) return <div className="p-8 font-bold text-rose-800 animate-pulse">Loading Sample Collection...</div>;
+  if (isLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading Phlebotomy Queue...</div>;
   const employees = data?.employees || [];
 
-  // The Search Engine (Name, ID, or Contact No)
-  const filteredEmployees = employees.filter((emp: any) => 
-    emp.name.toLowerCase().includes(search.toLowerCase()) || 
-    emp.empCode.toLowerCase().includes(search.toLowerCase()) ||
-    (emp.contactNo && emp.contactNo.includes(search))
-  );
-
-  const handleToggle = (id: string, type: 'blood' | 'urine') => {
-    setCollections(prev => ({
-      ...prev,
-      [id]: { ...prev[id], [type]: !prev[id]?.[type] }
-    }));
-  };
-
-  const handleSaveAndNext = async (emp: any) => {
-    setSavingId(emp.id);
-    const bloodCollected = collections[emp.id]?.blood || false;
-    const urineCollected = collections[emp.id]?.urine || false;
-
-    await fetch("/api/phlebotomy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeId: emp.id, bloodCollected, urineCollected })
-    });
-
-    mutate(); // Instantly refresh the queue
-    setSavingId(null);
-  };
-
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-end border-b pb-4">
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-rose-900">Phlebotomy / Sample Collection</h1>
-          <p className="text-gray-500 mt-1">Collect samples and forward to the Laboratory.</p>
+          <h1 className="text-3xl font-bold text-[#002642]">Phlebotomy Queue</h1>
+          <p className="text-gray-500 mt-1">Patients cleared by the Doctor awaiting sample collection.</p>
         </div>
-        <div className="bg-rose-100 text-rose-800 px-4 py-2 rounded-lg font-bold">Waiting: {employees.length}</div>
+        <div className="bg-[#002642] text-white px-5 py-2.5 rounded-xl font-bold shadow-md flex items-center gap-2">
+          <span>Pending Samples:</span>
+          <span className="text-teal-300 text-lg">{employees.length}</span>
+        </div>
       </div>
 
-      {/* Smart Search Bar */}
-      <input 
-        type="text" 
-        placeholder="Search by Patient Name, Employee ID, or Phone..." 
-        className="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-rose-500 focus:ring-0 shadow-sm text-lg font-semibold"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-rose-900 text-white">
-              <th className="p-4 font-semibold">Patient Details</th>
-              <th className="p-4 font-semibold text-center">Checklist</th>
-              <th className="p-4 font-semibold text-right">Action</th>
+            <tr className="bg-gray-50/50 border-b border-gray-200">
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Patient Name</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Client</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filteredEmployees.length === 0 ? (
-              <tr><td colSpan={3} className="p-8 text-center text-gray-500">No patients found.</td></tr>
+            {employees.length === 0 ? (
+              <tr><td colSpan={4} className="p-12 text-center text-gray-500 font-semibold">No patients waiting for sample collection.</td></tr>
             ) : (
-              filteredEmployees.map((emp: any) => {
-                const isBlood = collections[emp.id]?.blood || false;
-                const isUrine = collections[emp.id]?.urine || false;
-
-                return (
-                  <tr key={emp.id} className="hover:bg-rose-50">
-                    <td className="p-4">
-                      <p className="font-bold text-rose-900 text-lg">{emp.name}</p>
-                      <p className="text-sm text-gray-600">ID: {emp.empCode} | Ph: {emp.contactNo}</p>
-                      
-                      {/* CHERRY RED WARNINGS */}
-                      <div className="mt-2 text-xs font-bold space-y-1">
-                        {!isBlood && <p className="text-[#D2042D]">Blood Sample collection pending</p>}
-                        {!isUrine && <p className="text-[#D2042D]">Urine collection pending</p>}
-                      </div>
-                    </td>
-                    
-                    <td className="p-4 text-center space-x-6">
-                      <label className="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="w-6 h-6 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" 
-                          checked={isBlood} onChange={() => handleToggle(emp.id, 'blood')} />
-                        <span className="ml-2 font-bold text-gray-700">Blood</span>
-                      </label>
-                      <label className="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="w-6 h-6 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" 
-                          checked={isUrine} onChange={() => handleToggle(emp.id, 'urine')} />
-                        <span className="ml-2 font-bold text-gray-700">Urine</span>
-                      </label>
-                    </td>
-
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => handleSaveAndNext(emp)}
-                        disabled={savingId === emp.id}
-                        className="bg-rose-600 text-white px-6 py-3 rounded-md font-bold shadow hover:bg-rose-700 disabled:opacity-50 transition"
-                      >
-                        {savingId === emp.id ? "Saving..." : "Save & Next →"}
+              employees.map((emp: any) => (
+                <tr key={emp.id} className="hover:bg-teal-50/30 transition">
+                  <td className="p-4">
+                    <p className="font-bold text-[#002642] uppercase">{emp.name}</p>
+                    <p className="text-xs text-gray-500">{emp.age ? `${emp.age} Yrs` : "-"} / {emp.sex || "-"}</p>
+                  </td>
+                  <td className="p-4">
+                    <p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p>
+                    <p className="font-mono text-[11px] text-gray-400">SR: {emp.serialNo}</p>
+                  </td>
+                  <td className="p-4 hidden md:table-cell">
+                    <p className="font-semibold text-gray-800 text-sm">{emp.camp?.client?.name || "-"}</p>
+                  </td>
+                  <td className="p-4 text-right">
+                    <Link href={`/dashboard/phlebotomy/${emp.id}`}>
+                      <button className="bg-[#008C8C] text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-teal-600 transition inline-flex items-center gap-2">
+                        <span>Collect Sample</span>
+                        <span className="text-lg">🩸</span>
                       </button>
-                    </td>
-                  </tr>
-                );
-              })
+                    </Link>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

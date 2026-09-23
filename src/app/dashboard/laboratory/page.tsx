@@ -4,44 +4,59 @@ import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function LabQueuePage() {
-  const { data, isLoading } = useSWR('/api/employees?queue=lab', fetcher, { refreshInterval: 5000 });
+export default function LaboratoryQueuePage() {
+  // CRITICAL FIX: Explicitly asks the backend for the "laboratory" stage only
+  const { data, isLoading } = useSWR('/api/employees?queue=laboratory', fetcher, { refreshInterval: 5000 });
 
-  if (isLoading) return <div className="p-8 font-bold text-blue-800 animate-pulse">Loading Lab Queue...</div>;
+  if (isLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading Laboratory Queue...</div>;
   const employees = data?.employees || [];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <div className="flex justify-between items-end border-b pb-4">
+    <div className="max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold text-blue-900">Laboratory Queue</h1>
-          <p className="text-gray-500 mt-1">Patients waiting for blood and urine entry.</p>
+          <h1 className="text-3xl font-bold text-[#002642]">Laboratory Queue</h1>
+          <p className="text-gray-500 mt-1">Patients with collected samples awaiting diagnostic data entry.</p>
         </div>
-        <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-bold">Waiting: {employees.length}</div>
+        <div className="bg-[#002642] text-white px-5 py-2.5 rounded-xl font-bold shadow-md flex items-center gap-2">
+          <span>Pending Lab Tests:</span>
+          <span className="text-teal-300 text-lg">{employees.length}</span>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-blue-900 text-white">
-              <th className="p-4 font-semibold">Patient Name</th>
-              <th className="p-4 font-semibold">Employee ID</th>
-              <th className="p-4 font-semibold">Status</th>
-              <th className="p-4 font-semibold text-right">Action</th>
+            <tr className="bg-gray-50/50 border-b border-gray-200">
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Patient Name</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider hidden md:table-cell">Client</th>
+              <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {employees.length === 0 ? (
-              <tr><td colSpan={4} className="p-8 text-center text-gray-500">No patients waiting for lab entry.</td></tr>
+              <tr><td colSpan={4} className="p-12 text-center text-gray-500 font-semibold">No patients waiting for laboratory entry.</td></tr>
             ) : (
               employees.map((emp: any) => (
-                <tr key={emp.id} className="hover:bg-blue-50">
-                  <td className="p-4 font-bold text-blue-900">{emp.name}</td>
-                  <td className="p-4 text-gray-600">{emp.empCode}</td>
-                  <td className="p-4"><span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">Lab Pending</span></td>
+                <tr key={emp.id} className="hover:bg-teal-50/30 transition">
+                  <td className="p-4">
+                    <p className="font-bold text-[#002642] uppercase">{emp.name}</p>
+                    <p className="text-xs text-gray-500">{emp.age ? `${emp.age} Yrs` : "-"} / {emp.sex || "-"}</p>
+                  </td>
+                  <td className="p-4">
+                    <p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p>
+                    <p className="font-mono text-[11px] text-gray-400">SR: {emp.serialNo}</p>
+                  </td>
+                  <td className="p-4 hidden md:table-cell">
+                    <p className="font-semibold text-gray-800 text-sm">{emp.camp?.client?.name || "-"}</p>
+                  </td>
                   <td className="p-4 text-right">
                     <Link href={`/dashboard/laboratory/${emp.id}`}>
-                      <button className="bg-blue-600 text-white px-6 py-2 rounded-md font-bold shadow hover:bg-blue-700">Enter Results</button>
+                      <button className="bg-[#008C8C] text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-teal-600 transition inline-flex items-center gap-2">
+                        <span>Enter Results</span>
+                        <span className="text-lg">🔬</span>
+                      </button>
                     </Link>
                   </td>
                 </tr>
