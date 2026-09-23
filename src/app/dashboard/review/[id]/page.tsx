@@ -186,13 +186,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         {/* Footer Signature */}
         <div className="mt-12 flex justify-between items-end">
           <div className="text-center">
-            <div className="w-40 border-b border-black mb-1"></div>
+            <div className="w-80 border-b border-black mb-1"></div>
             <p className="text-[10px] font-bold uppercase tracking-wider">Candidate Signature</p>
           </div>
           <div className="text-center">
-            <div className="w-40 border-b border-black mb-1"></div>
+            <div className="w-80 border-b border-black mb-1"></div>
             <p className="text-[10px] font-bold uppercase tracking-wider">Authorized Doctor Signature</p>
-            <p className="text-[9px] text-gray-500 font-semibold">Dr. Ankitkumar Patel (Vyora Healthcare)</p>
+            <p className="text-[9px] text-gray-500 font-semibold"> (Vyora Healthcare Pvt Ltd)</p>
           </div>
         </div>
 
