@@ -19,19 +19,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ employee });
     }
 
-    // 2. The Master Workflow Engine (Controls the Queues)
+    // 2. THE STRICT PIPELINE ROUTER
     let whereClause: any = {};
     
     if (queue === 'reception') {
-      whereClause.status = 'REGISTERED';
+      whereClause.status = 'REGISTERED'; // Step 1: New Uploads
     } else if (queue === 'doctor') {
-      whereClause.status = 'RECEPTION_DONE';
+      whereClause.status = 'RECEPTION_DONE'; // Step 2: Cleared by Reception
     } else if (queue === 'phlebotomy') {
-      whereClause.status = 'DOC_DONE'; // Picks up exactly where Doctor left off
+      whereClause.status = 'DOC_DONE'; // Step 3: Examined by Doctor
     } else if (queue === 'laboratory') {
-      whereClause.status = 'PHLEBO_DONE'; // Picks up exactly where Phlebotomy left off
+      whereClause.status = 'LAB_PENDING'; // Step 4: Samples Collected by Phlebo
     } else if (queue === 'review') {
-      whereClause.status = 'LAB_DONE'; // Picks up exactly where Lab left off
+      whereClause.status = 'LAB_DONE'; // Step 5: Tests complete, ready for Final Report
     }
 
     if (campId) whereClause.campId = campId;
