@@ -63,21 +63,23 @@ export default function ClientReportsPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       
       {/* 
-        DYNAMIC PRINT CSS: 
-        Exact 21cm x 27.7cm A4 frame with database-driven margins.
+        EXACT A4 PRINT CSS MATCHING REVIEW PAGE:
+        Forces 21cm x 27.7cm with proper box-sizing and database margins.
       */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
-          @page { size: 21cm 27.7cm; margin: 0; }
+          @page { size: 21cm 27.7cm; margin: 0 !important; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; margin: 0; padding: 0; }
           body * { visibility: hidden; }
           .print-container, .print-container * { visibility: visible; }
           .print-hide { display: none !important; }
           
           .print-container { 
-            position: relative !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 21cm !important; 
-            min-height: 27.7cm !important; 
+            height: 27.7cm !important; 
             max-height: 27.7cm !important;
             padding-top: ${marginTop} !important; 
             padding-bottom: ${marginBottom} !important;
@@ -86,7 +88,7 @@ export default function ClientReportsPage() {
             box-sizing: border-box !important; 
             page-break-after: always; 
             background: white;
-            margin: 0 auto !important;
+            margin: 0 !important;
             display: block !important;
           }
           thead { display: table-header-group; }
@@ -181,7 +183,7 @@ export default function ClientReportsPage() {
         )}
       </div>
 
-      {/* PRINTABLE CONTAINER (Using the exact pristine Review layout) */}
+      {/* PRINTABLE CONTAINER (Exact match to individual review layout) */}
       <div className="hidden print:block text-black bg-white">
         {employeesToPrint.map((emp: any) => {
           const fitness = emp.conclusion?.fitness || "FIT";
