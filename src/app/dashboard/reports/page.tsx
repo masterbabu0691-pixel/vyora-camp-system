@@ -23,13 +23,16 @@ export default function ClientReportsPage() {
   };
 
   const toggleEmployee = (id: string) => {
-    setSelectedEmployees(prev => 
-      prev.includes(id) ? prev.filter(eId => eId !== id) : [...prev, id]
-    );
+    setSelectedEmployees(prev => prev.includes(id) ? prev.filter(eId => eId !== id) : [...prev, id]);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = () => window.print();
+
+  // Helper function to extract specific tests from the dynamic Lab Results array
+  const getLab = (emp: any, testName: string) => {
+    if (!emp.labResults) return "-";
+    const test = emp.labResults.find((l: any) => l.testName.toLowerCase().includes(testName.toLowerCase()));
+    return test ? `${test.result || ""} ${test.unit || ""}`.trim() : "-";
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
@@ -40,20 +43,27 @@ export default function ClientReportsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
+      {/* FORCE CUSTOM PAPER SIZE FOR PRINTING: 21cm x 27.7cm */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          @page { size: 21cm 27.7cm; margin: 0; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .print-container { width: 21cm; height: 27.7cm; padding: 4cm 1.5cm 2.5cm 1.5cm; box-sizing: border-box; page-break-after: always; position: relative; }
+        }
+      `}} />
+
       {/* 🛑 SCREEN UI (Hidden during printing) */}
       <div className="print:hidden space-y-6">
-        <div className="border-b pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div className="border-b pb-4 flex justify-between items-end">
           <div>
-            <h1 className="text-3xl font-bold text-[#002642]">Client Reports & Batch Certificates</h1>
-            <p className="text-gray-500 mt-1">Select completed employee files to generate and print final medical summary certificates.</p>
+            <h1 className="text-3xl font-bold text-[#002642]">Final Medical Reports</h1>
+            <p className="text-gray-500 mt-1">Select employees to print the mapped 21x27.7cm letterhead summaries.</p>
           </div>
           <button 
             onClick={handlePrint}
             disabled={selectedEmployees.length === 0}
             className={`px-6 py-2.5 rounded-xl font-bold shadow-md transition flex items-center gap-2 ${
-              selectedEmployees.length > 0 
-                ? "bg-[#008C8C] hover:bg-[#006b6b] text-white" 
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              selectedEmployees.length > 0 ? "bg-[#008C8C] hover:bg-[#006b6b] text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed"
             }`}
           >
             🖨️ Print Selected ({selectedEmployees.length})
@@ -62,14 +72,7 @@ export default function ClientReportsPage() {
 
         <div className="bg-[#002642] p-6 rounded-2xl shadow-md text-white">
           <label className="block text-xs font-bold text-teal-300 mb-2 uppercase tracking-wider">Select Target Camp</label>
-          <select 
-            className="w-full p-3 rounded-xl text-gray-900 font-bold outline-none bg-white shadow-inner" 
-            value={selectedCampId} 
-            onChange={(e) => {
-              setSelectedCampId(e.target.value);
-              setSelectedEmployees([]);
-            }}
-          >
+          <select className="w-full p-3 rounded-xl text-gray-900 font-bold outline-none" value={selectedCampId} onChange={(e) => { setSelectedCampId(e.target.value); setSelectedEmployees([]); }}>
             <option value="">-- Choose a Client & Camp --</option>
             {clients.map((client: any) => client.camps.map((camp: any) => (
               <option key={camp.id} value={camp.id}>{client.name} - {camp.campName}</option>
@@ -79,48 +82,22 @@ export default function ClientReportsPage() {
 
         {selectedCampId && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-              <span className="font-bold text-[#002642] text-sm">Employee Roster & Assessment Status</span>
-              <span className="text-xs text-gray-500 font-semibold">{employees.length} Total Records</span>
-            </div>
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 bg-gray-50/50">
-                  <th className="p-4 w-12 text-center">
-                    <input type="checkbox" className="w-4 h-4 cursor-pointer accent-[#008C8C]" 
-                      checked={employees.length > 0 && selectedEmployees.length === employees.length}
-                      onChange={toggleSelectAll} 
-                    />
-                  </th>
+                  <th className="p-4 w-12 text-center"><input type="checkbox" className="w-4 h-4 cursor-pointer accent-[#008C8C]" checked={employees.length > 0 && selectedEmployees.length === employees.length} onChange={toggleSelectAll} /></th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Employee Name</th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers</th>
-                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fitness Status</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {reportsLoading ? (
-                  <tr><td colSpan={4} className="p-12 text-center text-gray-400 font-bold">Loading Employee Records...</td></tr>
-                ) : employees.map((emp: any) => (
+                {reportsLoading ? <tr><td colSpan={4} className="p-12 text-center text-gray-400 font-bold">Loading...</td></tr> : employees.map((emp: any) => (
                   <tr key={emp.id} className="hover:bg-teal-50/30 transition cursor-pointer" onClick={() => toggleEmployee(emp.id)}>
-                    <td className="p-4 text-center">
-                      <input type="checkbox" className="w-4 h-4 pointer-events-none accent-[#008C8C]" checked={selectedEmployees.includes(emp.id)} readOnly />
-                    </td>
-                    <td className="p-4">
-                      <p className="font-bold text-[#002642]">{emp.name}</p>
-                      <p className="text-xs text-gray-500">Dept: {emp.department || "-"} | Desig: {emp.designation || "-"}</p>
-                    </td>
-                    <td className="p-4">
-                      <p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p>
-                      <p className="font-mono text-[11px] text-gray-400">{emp.certificateNo || "Cert Pending"}</p>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase tracking-wide ${
-                        emp.conclusion?.fitness === "FIT" ? "bg-green-100 text-green-800" :
-                        emp.conclusion?.fitness === "UNFIT" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"
-                      }`}>
-                        {emp.conclusion?.fitness || emp.status}
-                      </span>
-                    </td>
+                    <td className="p-4 text-center"><input type="checkbox" className="w-4 h-4 pointer-events-none accent-[#008C8C]" checked={selectedEmployees.includes(emp.id)} readOnly /></td>
+                    <td className="p-4"><p className="font-bold text-[#002642]">{emp.name}</p><p className="text-xs text-gray-500">{emp.designation || "-"}</p></td>
+                    <td className="p-4"><p className="font-mono text-xs font-bold text-[#008C8C]">{emp.uhid}</p><p className="font-mono text-[11px] text-gray-400">SR: {emp.serialNo}</p></td>
+                    <td className="p-4"><span className="px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase bg-gray-100 text-gray-800">{emp.status}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -129,106 +106,112 @@ export default function ClientReportsPage() {
         )}
       </div>
 
-      {/* 🖨️ PRINT UI (Classic Clean Structured Design) */}
+      {/* 🖨️ PRINT UI (Mapped exactly to the reference document) */}
       <div className="hidden print:block text-black bg-white">
         {employeesToPrint.map((emp: any) => (
-          <div key={emp.id} className="print-page w-full min-h-screen p-8 flex flex-col justify-between page-break" style={{ pageBreakAfter: "always" }}>
+          <div key={emp.id} className="print-container text-[11px]">
             
-            {/* Header Section */}
-            <div>
-              <div className="flex justify-between items-center border-b-2 border-[#002642] pb-4 mb-6">
-                <div>
-                  <h1 className="text-2xl font-black text-[#002642] tracking-wider">VYORA HEALTHCARE</h1>
-                  <p className="text-xs font-bold text-gray-600">PRIVATE LIMITED • OCCUPATIONAL HEALTH DIVISION</p>
+            <h2 className="text-center text-lg font-black uppercase underline underline-offset-4 mb-4 tracking-widest text-[#002642]">Medical Examination Report</h2>
+
+            {/* Header Details Grid */}
+            <div className="border-2 border-black p-2 mb-3">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 font-semibold">
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Exam Date:</span> <span>{new Date().toLocaleDateString()}</span></div>
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Serial No:</span> <span>{emp.serialNo}</span></div>
+                
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Client Name:</span> <span className="uppercase">{emp.camp?.client?.name}</span></div>
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Client Code:</span> <span className="uppercase">{emp.camp?.client?.clientCode || "-"}</span></div>
+                
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Name:</span> <span className="uppercase">{emp.name}</span></div>
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Age / Sex:</span> <span>{emp.age || "-"} Year / {emp.sex || "-"}</span></div>
+                
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Emp Code:</span> <span>{emp.empCode || "-"}</span></div>
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Status:</span> <span>{emp.conclusion?.fitness || "FIT"}</span></div>
+                
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Department:</span> <span>{emp.department || "-"}</span></div>
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Designation:</span> <span>{emp.designation || "-"}</span></div>
+                
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Email ID:</span> <span>{emp.email || "-"}</span></div>
+                <div className="flex"><span className="w-28 font-bold text-gray-700">Contact No:</span> <span>{emp.contactNo || "-"}</span></div>
+              </div>
+            </div>
+
+            {/* Vitals, History & Eyes */}
+            <div className="border-2 border-black mb-3">
+              <div className="grid grid-cols-6 divide-x divide-black border-b border-black text-center font-bold">
+                <div className="p-1">Height: {emp.vitals?.height || "-"}</div>
+                <div className="p-1">Weight: {emp.vitals?.weight || "-"}</div>
+                <div className="p-1">BMI: {emp.vitals?.bmi || "-"}</div>
+                <div className="p-1">Heart Rate: {emp.vitals?.heartRate || "-"}</div>
+                <div className="p-1">SpO2 %: {emp.vitals?.spO2 || "-"}</div>
+                <div className="p-1">BP: {emp.vitals?.bloodPress || "-"}</div>
+              </div>
+              
+              <div className="grid grid-cols-2 divide-x divide-black border-b border-black">
+                <div className="p-1.5 flex"><span className="w-28 font-bold text-gray-700">Past History:</span> <span>{emp.examination?.pastHistory || "Nil"}</span></div>
+                <div className="p-1.5 flex"><span className="w-28 font-bold text-gray-700">Co-Morbidities:</span> <span>{emp.examination?.comorbidities || "Nil"}</span></div>
+              </div>
+
+              <div className="grid grid-cols-3 divide-x divide-black">
+                <div className="p-1.5 flex bg-gray-100 font-bold justify-center items-center">Systematic Examination:</div>
+                <div className="p-1.5 flex flex-col justify-center">
+                  <div className="flex"><span className="w-16 font-bold">Right:</span> <span>{emp.examination?.eyeRight || "6/6"}</span></div>
+                  <div className="flex"><span className="w-16 font-bold">Left:</span> <span>{emp.examination?.eyeLeft || "6/6"}</span></div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold">MEDICAL FITNESS CERTIFICATE</p>
-                  <p className="text-[10px] font-mono text-gray-500">{emp.certificateNo || "REF: VHC/2026/FSSAI"}</p>
+                <div className="p-1.5 flex items-center"><span className="w-28 font-bold">Color Blindness:</span> <span>{emp.examination?.colorBlindness || "Normal"}</span></div>
+              </div>
+            </div>
+
+            {/* 2-Column Split: Physical vs Blood Investigation */}
+            <div className="grid grid-cols-2 gap-3 mb-3 h-[8cm]">
+              {/* Left Column: Physical Exam */}
+              <div className="border-2 border-black">
+                <div className="bg-gray-200 border-b-2 border-black p-1 font-bold text-center tracking-wider uppercase">Physical Examination</div>
+                <div className="p-2 space-y-2">
+                  <div className="grid grid-cols-2"><span className="font-bold">Eyes:</span> <span>{emp.examination?.eyeRight ? "Normal" : "-"}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">ENT:</span> <span>{emp.examination?.ent || "Normal"}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Oral:</span> <span>{emp.examination?.oral || "Normal"}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Head & Neck:</span> <span>{emp.examination?.headNeck || "Normal"}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Lungs & Chest:</span> <span>{emp.examination?.lungsChest || "Clear"}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">CardioVascular System:</span> <span>{emp.examination?.cardiovascular || "Normal S1 S2"}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Skin & Varicose Vein:</span> <span>{emp.examination?.skinVaricose || "Normal"}</span></div>
                 </div>
               </div>
 
-              {/* Employee Information Block */}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs mb-6 border border-gray-300 p-4 rounded-lg bg-gray-50/50">
-                <div><span className="font-bold text-gray-600">Employee Name:</span> <span className="font-semibold text-black">{emp.name}</span></div>
-                <div><span className="font-bold text-gray-600">UHID:</span> <span className="font-mono font-semibold">{emp.uhid}</span></div>
-                <div><span className="font-bold text-gray-600">Client Organization:</span> <span className="font-semibold">{emp.camp?.client?.name}</span></div>
-                <div><span className="font-bold text-gray-600">Employee Code:</span> <span className="font-mono">{emp.empCode || "-"}</span></div>
-                <div><span className="font-bold text-gray-600">Department / Role:</span> <span>{emp.department || "-"} / {emp.designation || "-"}</span></div>
-                <div><span className="font-bold text-gray-600">Age / Sex:</span> <span>{emp.age || "-"} Yrs / {emp.sex || "-"}</span></div>
-              </div>
-
-              {/* Clinical Vitals & Examination Summary */}
-              <div className="space-y-4 mb-6">
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider bg-gray-100 p-1.5 border-l-4 border-[#002642] mb-2">1. Physical & Vitals Evaluation</h3>
-                  <div className="grid grid-cols-4 gap-2 text-xs border border-gray-200 p-3 rounded">
-                    <div><span className="text-gray-500 block">Height/Weight</span> <span className="font-bold">{emp.vitals?.height || "-"} cm / {emp.vitals?.weight || "-"} kg</span></div>
-                    <div><span className="text-gray-500 block">BMI</span> <span className="font-bold">{emp.vitals?.bmi || "-"}</span></div>
-                    <div><span className="text-gray-500 block">Blood Pressure</span> <span className="font-bold">{emp.vitals?.bloodPress || "-"}</span></div>
-                    <div><span className="text-gray-500 block">Pulse Rate</span> <span className="font-bold">{emp.vitals?.heartRate ? `${emp.vitals.heartRate} bpm` : "-"}</span></div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider bg-gray-100 p-1.5 border-l-4 border-[#002642] mb-2">2. Clinical Observations</h3>
-                  <div className="grid grid-cols-3 gap-2 text-xs border border-gray-200 p-3 rounded">
-                    <div><span className="text-gray-500 block">Vision (L / R)</span> <span className="font-bold">{emp.examination?.eyeLeft || "6/6"} / {emp.examination?.eyeRight || "6/6"}</span></div>
-                    <div><span className="text-gray-500 block">Color Blindness</span> <span className="font-bold">{emp.examination?.colorBlindness || "Normal"}</span></div>
-                    <div><span className="text-gray-500 block">Systemic Exam</span> <span className="font-bold">Normal / Unremarkable</span></div>
-                  </div>
-                </div>
-
-                {emp.labResults && emp.labResults.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider bg-gray-100 p-1.5 border-l-4 border-[#002642] mb-2">3. Laboratory Investigation Summary</h3>
-                    <div className="border border-gray-200 rounded text-xs overflow-hidden">
-                      <table className="w-full text-left">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="p-2 font-bold">Test Name</th>
-                            <th className="p-2 font-bold">Result Value</th>
-                            <th className="p-2 font-bold">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {emp.labResults.map((lab: any) => (
-                            <tr key={lab.id}>
-                              <td className="p-2">{lab.testName}</td>
-                              <td className="p-2 font-mono font-semibold">{lab.result || "N/A"} {lab.unit || ""}</td>
-                              <td className="p-2 font-bold text-teal-800">{lab.flag || "NORMAL"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wider bg-gray-100 p-1.5 border-l-4 border-[#002642] mb-2">4. Final Medical Conclusion</h3>
-                  <div className="border border-gray-200 p-3 rounded text-xs space-y-1">
-                    <div><span className="font-bold text-gray-600">Fitness Status:</span> <span className="font-extrabold text-sm uppercase text-[#008C8C]">{emp.conclusion?.fitness || "FIT"}</span></div>
-                    <div><span className="font-bold text-gray-600">Clinical Remarks:</span> <span>{emp.conclusion?.remarks || "Found fit for occupational duties with no active signs of communicable or infectious diseases."}</span></div>
-                  </div>
+              {/* Right Column: Blood & Urine Investigation */}
+              <div className="border-2 border-black">
+                <div className="bg-gray-200 border-b-2 border-black p-1 font-bold text-center tracking-wider uppercase">Blood Investigation</div>
+                <div className="p-2 space-y-[0.35rem]">
+                  <div className="grid grid-cols-2"><span className="font-bold">Hb:</span> <span>{getLab(emp, "Hb")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">WBC:</span> <span>{getLab(emp, "WBC")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Platelets:</span> <span>{getLab(emp, "Platelets")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">ESR:</span> <span>{getLab(emp, "ESR")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">SGPT:</span> <span>{getLab(emp, "SGPT")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">S.Creatinine:</span> <span>{getLab(emp, "Creatinine")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Widal Profile:</span> <span>{getLab(emp, "Widal")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">Blood Group:</span> <span>{getLab(emp, "Blood Group")}</span></div>
+                  <div className="grid grid-cols-2"><span className="font-bold">RBS:</span> <span>{getLab(emp, "RBS")}</span></div>
+                  <div className="grid grid-cols-2 pt-2 mt-2 border-t border-dashed border-gray-400"><span className="font-bold text-[#002642]">Urine R/M:</span> <span>{getLab(emp, "Urine")}</span></div>
                 </div>
               </div>
             </div>
 
-            {/* FSSAI Statutory Declaration & Signatures */}
-            <div className="mt-4 pt-4 border-t-2 border-gray-300">
-              <p className="text-[10px] font-bold text-gray-600 italic mb-6 text-justify leading-relaxed">
-                STATUTORY DECLARATION (FSSAI Food Handler Standard / Factory Act): I hereby certify that I have medically examined the above-named person and found them to be free from any infectious, communicable, or skin diseases. They are physically and medically fit to perform food handling/industrial operations.
-              </p>
-              <div className="flex justify-between items-end">
-                <div className="text-center">
-                  <div className="border-b border-black w-44 mb-1"></div>
-                  <p className="text-[11px] font-bold">Candidate Signature</p>
-                </div>
-                <div className="text-center">
-                  <div className="border-b border-black w-48 mb-1"></div>
-                  <p className="text-[11px] font-bold">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"}</p>
-                  <p className="text-[9px] text-gray-500">Authorized Medical Examiner</p>
-                </div>
+            {/* Conclusion Block */}
+            <div className="border-2 border-black p-2 mb-8">
+              <span className="font-bold text-gray-700 w-36 inline-block">Conclusion / Remark:</span> 
+              <span className="font-bold text-[#002642] uppercase">{emp.conclusion?.remarks || "FIT FOR DUTY"}</span>
+            </div>
+
+            {/* Signature Block (Locked to absolute bottom) */}
+            <div className="absolute bottom-[2.5cm] left-[1.5cm] right-[1.5cm] flex justify-between items-end">
+              <div className="text-center">
+                <div className="border-b border-black w-40 mb-1"></div>
+                <p className="font-bold">Candidate Signature</p>
+              </div>
+              <div className="text-center">
+                <div className="border-b border-black w-48 mb-1"></div>
+                <p className="font-bold uppercase">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"}</p>
+                <p className="text-[9px] text-gray-500">Authorized Medical Examiner / Reg No.</p>
               </div>
             </div>
 
