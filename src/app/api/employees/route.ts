@@ -47,3 +47,23 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) return NextResponse.json({ error: 'Employee ID required' }, { status: 400 });
+
+  try {
+    // Delete related records first to avoid foreign key constraints, then delete employee
+    await prisma.labResult.deleteMany({ where: { employeeId: id } });
+    await prisma.vitals.deleteMany({ where: { employeeId: id } });
+    await prisma.examination.deleteMany({ where: { employeeId: id } });
+    await prisma.conclusion.deleteMany({ where: { employeeId: id } });
+    
+    await prisma.employee.delete({ where: { id } });
+
+    return NextResponse.json({ success: true, message: "Employee deleted" });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

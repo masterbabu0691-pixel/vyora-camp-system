@@ -69,3 +69,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+export async function DELETE(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+
+  if (!id) return NextResponse.json({ error: 'Client ID required' }, { status: 400 });
+
+  try {
+    await prisma.client.delete({ where: { id } });
+    return NextResponse.json({ success: true, message: "Client deleted" });
+  } catch (error: any) {
+    return NextResponse.json({ error: "Cannot delete client with active camps/employees." }, { status: 500 });
+  }
+}

@@ -36,14 +36,46 @@ export default function PreRegistrationPage(): import("react").JSX.Element {
   };
 
   // EXCEL BULK UPLOAD HANDLER (CLEANED)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!selectedCampId) {
-      alert("Please select a camp first!");
-      return;
-    }
+  import * as XLSX from "xlsx";
 
+// ... inside your component
+
+const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  
+  // CRITICAL FIX: Use ArrayBuffer instead of BinaryString for modern .xlsx files
+  reader.onload = (event) => {
+    try {
+      const data = new Uint8Array(event.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Convert to JSON and map the data precisely
+      const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+      
+      const mappedData = json.map((row) => ({
+        name: row["Name"] || row["Patient Name"] || "",
+        age: row["Age"] ? parseInt(row["Age"]) : null,
+        sex: row["Sex"] || row["Gender"] || "",
+        empCode: row["Emp Code"] || row["Employee ID"] || "",
+        contactNo: row["Contact"] || row["Phone"]?.toString() || "",
+        department: row["Department"] || "",
+        designation: row["Designation"] || "",
+        email: row["Email"] || "",
+      }));
+
+      setExcelData(mappedData); // Or whatever state you use to hold the preview
+    } catch (error) {
+      alert("Failed to parse Excel file. Please ensure it is a valid .xlsx format.");
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+};
     setUploading(true);
 
     try {

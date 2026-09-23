@@ -59,6 +59,11 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         Uses native A4 sizing to stop Chrome from zooming/scaling the page.
         Locks the report width to exactly 21cm with strict 1.5cm safe margins.
       */}
+      {/* 
+        A4 LETTERHEAD PRINT CSS: 
+        Forces A4 Paper (21x29.7cm), but restricts content to 21x27.7cm.
+        The top 4.5cm is reserved for your pre-printed logo.
+      */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { 
@@ -73,14 +78,17 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             left: 0;
             top: 0;
             width: 21cm !important;
-            max-width: 21cm !important;
-            padding-left: 1.5cm; /* Bulletproof safe margin */
-            padding-right: 1.5cm; /* Bulletproof safe margin */
+            height: 27.7cm !important; /* Locks exact letterhead size inside A4 */
+            max-height: 27.7cm !important;
+            padding-top: 4.5cm !important; /* Letterhead logo gap */
+            padding-bottom: 2cm !important;
+            padding-left: 1.5cm !important; 
+            padding-right: 1.5cm !important; 
             box-sizing: border-box;
             background: white;
             margin: 0;
+            overflow: hidden;
           }
-          .letterhead-gap { height: 4.5cm !important; }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
           tr { page-break-inside: avoid; }
