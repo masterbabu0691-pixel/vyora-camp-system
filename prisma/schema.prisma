@@ -7,16 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- Users & Setup ---
+// ==========================================
+// 1. RBAC & USER MANAGEMENT
+// ==========================================
 model User {
-  id        String   @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
-  username  String   @unique
-  password  String 
-  role      String   @default("RECEPTION") // SUPER_ADMIN, RECEPTION, PHLEBOTOMY, DOCTOR, LAB, REVIEW
-  createdAt DateTime @default(now())
+  username  String     @unique
+  password  String     // Will store hashed passwords, never plain text
+  role      Role       @default(RECEPTION)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  // Relations for Audit Logs
+  auditLogs AuditLog[]
 }
 
+// Defines the exact roles allowed in your system
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  RECEPTION
+  DOCTOR
+  PHLEBOTOMIST
+  TECHNICIAN
+}
+
+// ==========================================
+// 2. CLIENT & CAMP MANAGEMENT
+// ==========================================
 model Client {
   id         String   @id @default(cuid())
   clientCode String   @unique // Auto-generated: e.g., VHC-CL-2026-001
@@ -26,27 +46,28 @@ model Client {
 }
 
 model Camp {
-  id               String     @id @default(cuid())
-  campName         String
-  campDate         DateTime
-  clientId         String
-  client           Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  id              String     @id @default(cuid())
+  campName        String
+  campDate        DateTime
+  clientId        String
+  client          Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
   
   // HR & Field Team Tracking
-  leadDoctor       String?
-  phlebotomist     String?
+  leadDoctor      String?
+  phlebotomist    String?
   campCoordinator String?
-  technician       String?
+  technician      String?
 
   // Configurable Test Checklist stored as comma-separated or JSON string
-  // Defaults to full occupational/FSSAI package
-  testChecklist    String     @default("CBC,RBS,URINE,STOOL,WIDAL,VISION,BP,BMI")
+  testChecklist   String     @default("CBC,RBS,URINE,STOOL,WIDAL,VISION,BP,BMI")
 
-  employees        Employee[]
-  createdAt        DateTime   @default(now())
+  employees       Employee[]
+  createdAt       DateTime   @default(now())
 }
 
-// --- Employee & Workflow ---
+// ==========================================
+// 3. EMPLOYEE & MEDICAL WORKFLOW
+// ==========================================
 model Employee {
   id             String       @id @default(cuid())
   campId         String
@@ -124,4 +145,37 @@ model Conclusion {
   declaration String?  // Statutory FSSAI Form IX / Occupational Health text
   remarks     String?
   finalizedAt DateTime @default(now())
+}
+
+// ==========================================
+// 4. SUPER ADMIN & SYSTEM SETTINGS
+// ==========================================
+model SystemSetting {
+  id          String   @id @default(cuid())
+  settingKey  String   @unique // e.g., "PRINT_MARGIN_TOP"
+  settingVal  String   // e.g., "4.5cm"
+  description String?  // e.g., "Top margin for Letterhead"
+  updatedAt   DateTime @updatedAt
+}
+
+model TestMaster {
+  id          String   @id @default(cuid())
+  testName    String   @unique // e.g., "Hemoglobin (Hb)"
+  category    String   // e.g., "Blood", "Urine", "Physical"
+  unit        String?  // e.g., "g/dL"
+  normalRange String?  // e.g., "13.5 - 17.5"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String   // e.g., "UPDATED_FITNESS", "DELETED_CLIENT"
+  entity    String   // e.g., "Employee", "Client"
+  entityId  String   // The ID of the record that was changed
+  details   String?  // e.g., "Changed from UNFIT to FIT"
+  timestamp DateTime @default(now())
 }
