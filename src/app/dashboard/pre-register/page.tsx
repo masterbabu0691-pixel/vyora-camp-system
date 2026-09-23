@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import useSWR from "swr";
-import * as XLSX from 'xlsx'; // Import is strictly at the top
+import * as XLSX from 'xlsx';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -35,30 +35,34 @@ export default function PreRegistrationPage() {
     setSaving(false);
   };
 
-  // CLEAN EXCEL UPLOAD HANDLER
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!selectedCampId) {
+      alert("Please select a camp first before uploading!");
+      e.target.value = '';
+      return;
+    }
+
     setUploading(true);
 
     try {
-      // Modern ArrayBuffer Parser (Guaranteed to work with new .xlsx files)
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: "array" }); 
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      // Map Excel Columns to Database Format
+      // Precisely mapped to match your Excel column headers: Name, Emp Code, Department, Designation, Age, Gender, Contact
       const mappedEmployees = jsonData.map((row: any) => ({
-        name: row['Name'] || row['Employee Name'] || row['Patient Name'] || row['Full Name'] || '',
-        empCode: row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Employee ID'] || row['Emp ID'] || '',
-        department: row['Department'] || row['Dept'] || '',
-        designation: row['Designation'] || row['Role'] || row['Job Role'] || '',
-        age: row['Age'] ? parseInt(row['Age']) : null,
-        sex: row['Sex'] || row['Gender'] || '',
-        contactNo: row['Contact'] || row['Mobile'] || row['Phone']?.toString() || ''
-      })).filter((emp: any) => emp.name && String(emp.name).trim() !== '');
+        name: String(row['Name'] || row['Employee Name'] || row['Patient Name'] || row['Full Name'] || '').trim(),
+        empCode: String(row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '').trim(),
+        department: String(row['Department'] || row['Dept'] || '').trim(),
+        designation: String(row['Designation'] || row['Role'] || row['Job Role'] || '').trim(),
+        age: row['Age'] !== '' && !isNaN(Number(row['Age'])) ? parseInt(row['Age']) : null,
+        sex: String(row['Gender'] || row['Sex'] || '').trim(),
+        contactNo: row['Contact'] !== undefined ? String(row['Contact']).trim() : ''
+      })).filter((emp: any) => emp.name !== '');
 
       if (mappedEmployees.length === 0) {
         alert("No valid employees found. Ensure your column header is exactly 'Name'.");
@@ -67,7 +71,6 @@ export default function PreRegistrationPage() {
         return;
       }
 
-      // Send Bulk Data to Database
       const response = await fetch('/api/employees/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,7 +94,7 @@ export default function PreRegistrationPage() {
     }
   };
 
-  // DELETE FUNCTIONALITY FOR DUPLICATES
+  // DELETE FUNCTIONALITY FOR EMPLOYEES
   const handleDelete = async (empId: string) => {
     if (confirm("Are you sure you want to delete this employee? This cannot be undone.")) {
       try {
@@ -112,7 +115,6 @@ export default function PreRegistrationPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      
       <div className="border-b pb-4">
         <h1 className="text-3xl font-bold text-[#002642]">Camp Pre-Registration</h1>
         <p className="text-gray-500 mt-1">Leave any unknown fields blank; Reception will complete them on-site.</p>
@@ -182,7 +184,7 @@ export default function PreRegistrationPage() {
             <div className="overflow-y-auto max-h-[500px] border-t pt-2">
               <ul className="divide-y divide-gray-100">
                 {empData?.employees?.map((emp: any) => (
-                  <li key={emp.id} className="py-3 flex justify-between items-center group">
+                  <li key={emp.id} className="py-3 flex justify-between items-center">
                     <div>
                       <p className="font-bold text-[#002642]">
                         {emp.name} 
@@ -191,13 +193,12 @@ export default function PreRegistrationPage() {
                         </span>
                       </p>
                       <p className="text-xs text-gray-500">
-                        Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span> | 📞 {emp.contactNo || "No Contact"}
+                        Code: {emp.empCode || "-"} | Dept: {emp.department || "-"} | Desig: <span className="font-bold">{emp.designation || "-"}</span>
                       </p>
                     </div>
-                    {/* HOVER-TO-DELETE BUTTON */}
                     <button 
                       onClick={() => handleDelete(emp.id)}
-                      className="opacity-0 group-hover:opacity-100 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition"
+                      className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition shadow-sm ml-2"
                     >
                       🗑️ Delete
                     </button>
@@ -205,7 +206,7 @@ export default function PreRegistrationPage() {
                 ))}
                 {(!empData?.employees || empData.employees.length === 0) && (
                   <li className="py-8 text-center text-sm text-gray-400">
-                    No employees pre-registered for this camp yet. Use the single entry form on the left or upload an Excel roster.
+                    No employees pre-registered for this camp yet.
                   </li>
                 )}
               </ul>
