@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
 const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
     if (queue === 'reception') {
       whereClause.status = 'REGISTERED'; // Step 1: New Uploads
     } else if (queue === 'doctor') {
-      whereClause.status = 'RECEPTION_DONE'; // Step 2: Cleared by Reception
+      // FIX: Accept both RECEPTION_DONE and legacy DOCTOR_PENDING so no patients are hidden
+      whereClause.status = { in: ['RECEPTION_DONE', 'DOCTOR_PENDING'] }; 
     } else if (queue === 'phlebotomy') {
       whereClause.status = 'DOC_DONE'; // Step 3: Examined by Doctor
     } else if (queue === 'laboratory') {
@@ -47,6 +49,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
