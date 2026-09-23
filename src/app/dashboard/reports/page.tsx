@@ -6,8 +6,10 @@ import * as XLSX from 'xlsx';
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function ClientReportsPage() {
-  const { data: clientData, isLoading: clientsLoading } = useSWR('/api/clients', fetcher);
+  const { data: clientData, isLoading: clientsLoading, mutate: mutateClients } = useSWR('/api/clients', fetcher);
   const [selectedCampId, setSelectedCampId] = useState("");
+  const [movingEmpId, setMovingEmpId] = useState<string | null>(null);
+  const [targetCampId, setTargetCampId] = useState("");
   
   // 1. Fetch Dynamic Margins from Super Admin DB
   const { data: settingsData } = useSWR('/api/settings', fetcher);
@@ -21,7 +23,7 @@ export default function ClientReportsPage() {
   const marginRight = getMargin('MARGIN_RIGHT', '1.5cm');
 
   // 2. Fetch Employees for selected camp
-  const { data: reportData, isLoading: reportsLoading } = useSWR(
+  const { data: reportData, isLoading: reportsLoading, mutate: refreshEmployees } = useSWR(
     selectedCampId ? `/api/employees?campId=${selectedCampId}` : null, fetcher
   );
 
@@ -40,6 +42,34 @@ export default function ClientReportsPage() {
   };
 
   const handlePrint = () => window.print();
+
+  // Handle Moving Employee to a Different Camp
+  const handleMoveCamp = async (empId: string) => {
+    if (!targetCampId) {
+      alert("Please select a target destination camp first.");
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/employees/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeId: empId, newCampId: targetCampId })
+      });
+      const result = await res.json();
+
+      if (res.ok && result.success) {
+        alert("Employee successfully moved to the new camp with all medical records intact!");
+        setMovingEmpId(null);
+        setTargetCampId("");
+        refreshEmployees();
+      } else {
+        alert("Failed to move: " + (result.error || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Network error while reassigning camp.");
+    }
+  };
 
   // Excel Export Function for the Selected Camp
   const handleExportExcel = () => {
@@ -96,10 +126,6 @@ export default function ClientReportsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* 
-        BULLETPROOF BATCH PRINT CSS:
-        Isolates every selected employee into their own distinct 21cm x 27.7cm page.
-      */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: 21cm 27.7cm; margin: 0 !important; }
@@ -190,7 +216,7 @@ export default function ClientReportsPage() {
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Roster</p><p className="text-2xl font-black text-[#002642]">{total}</p></div>
             <div className="bg-green-50 p-4 rounded-xl shadow-sm border border-green-200 text-center"><p className="text-xs font-bold text-green-700 uppercase tracking-wider">Fit</p><p className="text-2xl font-black text-green-700">{fitCount}</p></div>
             <div className="bg-yellow-50 p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-yellow-700 uppercase tracking-wider">Follow-Up</p><p className="text-2xl font-black text-yellow-700">{followUpCount}</p></div>
-            <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-red-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
+            <div className="bg-red-50 p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-red-700 uppercase tracking-wider">Unfit</p><p className="text-2xl font-black text-red-700">{unfitCount}</p></div>
             <div className="bg-gray-100 p-4 rounded-xl shadow-sm border border-gray-300 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending</p><p className="text-2xl font-black text-gray-700">{pending}</p></div>
           </div>
         )}
@@ -199,7 +225,7 @@ export default function ClientReportsPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
               <span className="font-bold text-[#002642] text-sm uppercase">Employees in Selected Camp</span>
-              <span className="text-xs text-gray-500 font-semibold">Click row to select/deselect for batch printing</span>
+              <span className="text-xs text-gray-500 font-semibold">Select rows for batch print, or click "Move" to reassign camp</span>
             </div>
             <table className="w-full text-left border-collapse">
               <thead>
@@ -208,15 +234,16 @@ export default function ClientReportsPage() {
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Employee Name & Role</th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Identifiers & Sr No</th>
                   <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Fitness Status</th>
+                  <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Quick Reassign</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {reportsLoading ? <tr><td colSpan={4} className="p-12 text-center text-gray-400 font-bold">Loading Roster...</td></tr> : employees.map((emp: any) => (
-                  <tr key={emp.id} className="hover:bg-teal-50/30 transition cursor-pointer" onClick={() => toggleEmployee(emp.id)}>
-                    <td className="p-4 text-center"><input type="checkbox" className="w-4 h-4 pointer-events-none accent-[#008C8C]" checked={selectedEmployees.includes(emp.id)} readOnly /></td>
-                    <td className="p-4"><p className="font-bold text-[#002642] uppercase">{emp.name}</p><p className="text-xs text-gray-500">{emp.department || "-"} | {emp.designation || "-"}</p></td>
-                    <td className="p-4"><p className="font-mono text-xs font-bold text-[#008C8C]">SR: {emp.serialNo}</p><p className="font-mono text-[11px] text-gray-400">UHID: {emp.uhid}</p></td>
-                    <td className="p-4">
+                {reportsLoading ? <tr><td colSpan={5} className="p-12 text-center text-gray-400 font-bold">Loading Roster...</td></tr> : employees.map((emp: any) => (
+                  <tr key={emp.id} className="hover:bg-teal-50/30 transition">
+                    <td className="p-4 text-center" onClick={() => toggleEmployee(emp.id)}><input type="checkbox" className="w-4 h-4 cursor-pointer accent-[#008C8C]" checked={selectedEmployees.includes(emp.id)} readOnly /></td>
+                    <td className="p-4 cursor-pointer" onClick={() => toggleEmployee(emp.id)}><p className="font-bold text-[#002642] uppercase">{emp.name}</p><p className="text-xs text-gray-500">{emp.department || "-"} | {emp.designation || "-"}</p></td>
+                    <td className="p-4 cursor-pointer" onClick={() => toggleEmployee(emp.id)}><p className="font-mono text-xs font-bold text-[#008C8C]">SR: {emp.serialNo}</p><p className="font-mono text-[11px] text-gray-400">UHID: {emp.uhid}</p></td>
+                    <td className="p-4 cursor-pointer" onClick={() => toggleEmployee(emp.id)}>
                       <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-full uppercase ${
                         emp.conclusion?.fitness === 'FIT' ? 'bg-green-100 text-green-800' :
                         emp.conclusion?.fitness === 'UNFIT' ? 'bg-red-100 text-red-800' :
@@ -224,6 +251,31 @@ export default function ClientReportsPage() {
                       }`}>
                         {emp.conclusion?.fitness || emp.status}
                       </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      {movingEmpId === emp.id ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <select 
+                            className="border text-xs p-1.5 rounded font-bold bg-white"
+                            value={targetCampId}
+                            onChange={(e) => setTargetCampId(e.target.value)}
+                          >
+                            <option value="">-- Target Camp --</option>
+                            {clients.map((c: any) => c.camps?.map((cp: any) => (
+                              cp.id !== selectedCampId && <option key={cp.id} value={cp.id}>{c.name} - {cp.campName}</option>
+                            )))}
+                          </select>
+                          <button onClick={() => handleMoveCamp(emp.id)} className="bg-emerald-600 text-white px-3 py-1 rounded text-xs font-bold">Save</button>
+                          <button onClick={() => setMovingEmpId(null)} className="text-gray-400 font-bold text-xs">✕</button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => { setMovingEmpId(emp.id); setTargetCampId(""); }}
+                          className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition shadow-sm"
+                        >
+                          🔄 Move Camp
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -321,7 +373,7 @@ export default function ClientReportsPage() {
                 <div className="text-center">
                   <div className="w-36 border-b border-black mb-1"></div>
                   <p className="text-[9px] font-bold uppercase tracking-wider">Authorized Doctor Signature</p>
-                  <p className="text-[8px] text-gray-500 font-semibold">Dr. {emp.camp?.leadDoctor || ""} (Vyora Healthcare Pvt. Ltd.)</p>
+                  <p className="text-[8px] text-gray-500 font-semibold">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"} (Vyora Healthcare)</p>
                 </div>
               </div>
 
