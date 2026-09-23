@@ -23,7 +23,6 @@ export default function ClientManagerPage() {
     campCoordinator: ""
   });
 
-  // Default FSSAI standard tests pre-selected
   const [selectedTests, setSelectedTests] = useState<string[]>([
     "Vitals (BP/BMI)", "Vision", "CBC", "RBS", "Urine Routine", "Stool Culture", "Widal"
   ]);
@@ -53,11 +52,28 @@ export default function ClientManagerPage() {
     
     if (result.success) {
       setForm({ name: "", campName: "", campDate: "", leadDoctor: "", phlebotomist: "", campCoordinator: "" });
-      mutate(); // Instantly refresh the list
+      mutate();
     } else {
       alert("Error saving client: " + result.error);
     }
     setSaving(false);
+  };
+
+  // CLIENT DELETE FUNCTION
+  const handleDeleteClient = async (clientId: string) => {
+    if (confirm("Are you sure you want to delete this Client? This will also delete all associated camps and employees!")) {
+      try {
+        const res = await fetch(`/api/clients?id=${clientId}`, { method: 'DELETE' });
+        if (res.ok) {
+          mutate();
+          alert("Client deleted successfully.");
+        } else {
+          alert("Cannot delete client. They might have active records.");
+        }
+      } catch (err) {
+        alert("Network error while deleting client.");
+      }
+    }
   };
 
   if (isLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading Clients...</div>;
@@ -76,12 +92,10 @@ export default function ClientManagerPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEFT: REGISTRATION FORM */}
         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
           <h2 className="text-lg font-bold text-[#008C8C] mb-4">Register New Client Camp</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* 1. Client Info */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Company Details</h3>
               <div><label className="block text-xs font-bold text-gray-500">Company Name *</label><input required type="text" className="mt-1 w-full border-2 p-2 rounded-md font-semibold" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. ABC Foods Pvt Ltd" /></div>
@@ -89,7 +103,6 @@ export default function ClientManagerPage() {
               <div><label className="block text-xs font-bold text-gray-500">Camp Date *</label><input required type="date" className="mt-1 w-full border-2 p-2 rounded-md font-semibold" value={form.campDate} onChange={e => setForm({...form, campDate: e.target.value})} /></div>
             </div>
 
-            {/* 2. Team Assignment */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">On-Site Team</h3>
               <div><label className="block text-xs font-bold text-gray-500">Lead Doctor</label><input type="text" className="mt-1 w-full border-2 p-2 rounded-md font-semibold" value={form.leadDoctor} onChange={e => setForm({...form, leadDoctor: e.target.value})} /></div>
@@ -99,7 +112,6 @@ export default function ClientManagerPage() {
               </div>
             </div>
 
-            {/* 3. Dynamic Test Checklist */}
             <div className="space-y-3 bg-indigo-50 p-4 rounded-lg border border-indigo-100">
               <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wider">Test Package Checklist</h3>
               <p className="text-[10px] text-indigo-600 mb-2 leading-tight">Selected tests will automatically adjust the reception summary and queue interfaces.</p>
@@ -124,7 +136,6 @@ export default function ClientManagerPage() {
           </form>
         </div>
 
-        {/* RIGHT: CLIENT LIST */}
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-lg font-bold text-[#002642]">Active Client Projects</h2>
           
@@ -134,14 +145,23 @@ export default function ClientManagerPage() {
              </div>
           ) : (
             clients.map((client: any) => (
-              <div key={client.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:border-[#008C8C] transition">
+              <div key={client.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:border-[#008C8C] transition relative group">
                 <div className="flex justify-between items-start border-b pb-3 mb-3">
                   <div>
                     <h3 className="text-xl font-black text-[#002642]">{client.name}</h3>
                     <p className="text-sm font-bold text-teal-600 font-mono mt-1">ID: {client.clientCode || "VHC-CL-LEGACY"}</p>
                   </div>
-                  <div className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full">
-                    {client.camps?.length || 0} Camps Recorded
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full">
+                      {client.camps?.length || 0} Camps Recorded
+                    </div>
+                    {/* NEW PERMANENT DELETE BUTTON */}
+                    <button 
+                      onClick={() => handleDeleteClient(client.id)}
+                      className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition shadow-sm"
+                    >
+                      🗑️ Delete Client
+                    </button>
                   </div>
                 </div>
 
