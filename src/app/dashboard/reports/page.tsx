@@ -321,7 +321,7 @@ export default function ClientReportsPage() {
                 <div className="text-center">
                   <div className="w-36 border-b border-black mb-1"></div>
                   <p className="text-[9px] font-bold uppercase tracking-wider">Authorized Doctor Signature</p>
-                  <p className="text-[8px] text-gray-500 font-semibold">Dr. {emp.camp?.leadDoctor || "Ankitkumar Patel"} (Vyora Healthcare)</p>
+                  <p className="text-[8px] text-gray-500 font-semibold">Dr. {emp.camp?.leadDoctor || ""} (Vyora Healthcare Pvt. Ltd.)</p>
                 </div>
               </div>
 
