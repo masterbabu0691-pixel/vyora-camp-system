@@ -8,7 +8,18 @@ export default function ClientReportsPage() {
   const { data: clientData, isLoading: clientsLoading } = useSWR('/api/clients', fetcher);
   const [selectedCampId, setSelectedCampId] = useState("");
   
-  // Use the standard employees endpoint to get everyone for the camp
+  // 1. Fetch Dynamic Margins from Super Admin DB
+  const { data: settingsData } = useSWR('/api/settings', fetcher);
+  
+  const getMargin = (key: string, fallback: string) => 
+    settingsData?.settings?.find((s: any) => s.settingKey === key)?.settingVal || fallback;
+
+  const marginTop = getMargin('MARGIN_TOP', '4.5cm');
+  const marginBottom = getMargin('MARGIN_BOTTOM', '2.5cm');
+  const marginLeft = getMargin('MARGIN_LEFT', '1.5cm');
+  const marginRight = getMargin('MARGIN_RIGHT', '1.5cm');
+
+  // 2. Fetch Employees
   const { data: reportData, isLoading: reportsLoading } = useSWR(
     selectedCampId ? `/api/employees?campId=${selectedCampId}` : null, fetcher
   );
@@ -29,7 +40,6 @@ export default function ClientReportsPage() {
 
   const handlePrint = () => window.print();
 
-  // Helper function to extract specific tests from the dynamic Lab Results array
   const getLab = (emp: any, testName: string) => {
     if (!emp.labResults) return "-";
     const test = emp.labResults.find((l: any) => l.testName.toLowerCase().includes(testName.toLowerCase()));
@@ -52,17 +62,20 @@ export default function ClientReportsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       
-      {/* FORCE CUSTOM PAPER SIZE FOR PRINTING: 21cm x 27.7cm */}
+      {/* 
+        DYNAMIC PRINT CSS: 
+        Directly injects the Super Admin database values into the CSS padding.
+      */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: 21cm 27.7cm; margin: 0; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
           .print-hide { display: none !important; }
-          /* Forces a page break after each report */
+          
           .print-container { 
-            width: 21cm; 
-            height: 27.7cm; 
-            padding: 4.5cm 1.5cm 2.5cm 1.5cm; /* 4.5cm gap for letterhead */
+            width: 21cm !important; 
+            height: 27.7cm !important; 
+            padding: ${marginTop} ${marginRight} ${marginBottom} ${marginLeft} !important;
             box-sizing: border-box; 
             page-break-after: always; 
             position: relative; 
@@ -71,12 +84,11 @@ export default function ClientReportsPage() {
         }
       `}} />
 
-      {/* 🛑 SCREEN UI (Hidden during printing) */}
       <div className="print-hide space-y-6">
         <div className="border-b pb-4 flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-bold text-[#002642]">Final Medical Reports</h1>
-            <p className="text-gray-500 mt-1">Select employees to batch print the mapped 21x27.7cm letterhead summaries.</p>
+            <p className="text-gray-500 mt-1">Select employees to batch print the 21x27.7cm summaries.</p>
           </div>
           <button 
             onClick={handlePrint}
@@ -99,7 +111,6 @@ export default function ClientReportsPage() {
           </select>
         </div>
 
-        {/* DASHBOARD STATISTICS */}
         {selectedCampId && !reportsLoading && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 text-center"><p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total</p><p className="text-2xl font-black text-[#002642]">{total}</p></div>
@@ -144,11 +155,8 @@ export default function ClientReportsPage() {
         )}
       </div>
 
-      {/* 🖨️ PRINT UI (Mapped exactly to the reference document) */}
       <div className="hidden print:block text-black bg-white">
         {employeesToPrint.map((emp: any) => {
-          
-          // Advice formatting logic
           const rawRemarks = emp.conclusion?.remarks || "FIT FOR DUTY";
           let displayRemark = rawRemarks;
           let displayAdvice = "";
@@ -164,30 +172,23 @@ export default function ClientReportsPage() {
               
               <h2 className="text-center text-lg font-black uppercase underline underline-offset-4 mb-4 tracking-widest text-[#002642]">Medical Examination Report</h2>
 
-              {/* Header Details Grid */}
               <div className="border-2 border-black p-2 mb-3">
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 font-semibold">
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Exam Date:</span> <span>{new Date().toLocaleDateString()}</span></div>
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Serial No:</span> <span>{emp.serialNo}</span></div>
-                  
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Client Name:</span> <span className="uppercase">{emp.camp?.client?.name}</span></div>
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Client Code:</span> <span className="uppercase">{emp.camp?.client?.clientCode || "-"}</span></div>
-                  
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Name:</span> <span className="uppercase">{emp.name}</span></div>
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Age / Sex:</span> <span>{emp.age || "-"} Year / {emp.sex || "-"}</span></div>
-                  
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Emp Code:</span> <span>{emp.empCode || "-"}</span></div>
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Status:</span> <span>{emp.conclusion?.fitness || "FIT"}</span></div>
-                  
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Department:</span> <span>{emp.department || "-"}</span></div>
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Designation:</span> <span>{emp.designation || "-"}</span></div>
-                  
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Email ID:</span> <span>{emp.email || "-"}</span></div>
                   <div className="flex"><span className="w-28 font-bold text-gray-700">Contact No:</span> <span>{emp.contactNo || "-"}</span></div>
                 </div>
               </div>
 
-              {/* Vitals, History & Eyes */}
               <div className="border-2 border-black mb-3">
                 <div className="grid grid-cols-6 divide-x divide-black border-b border-black text-center font-bold">
                   <div className="p-1">Height: {emp.vitals?.height || "-"}</div>
@@ -197,12 +198,10 @@ export default function ClientReportsPage() {
                   <div className="p-1">SpO2 %: {emp.vitals?.spO2 || "-"}</div>
                   <div className="p-1">BP: {emp.vitals?.bloodPress || "-"}</div>
                 </div>
-                
                 <div className="grid grid-cols-2 divide-x divide-black border-b border-black">
                   <div className="p-1.5 flex"><span className="w-28 font-bold text-gray-700">Past History:</span> <span>{emp.examination?.pastHistory || "Nil"}</span></div>
                   <div className="p-1.5 flex"><span className="w-28 font-bold text-gray-700">Co-Morbidities:</span> <span>{emp.examination?.comorbidities || "Nil"}</span></div>
                 </div>
-
                 <div className="grid grid-cols-3 divide-x divide-black">
                   <div className="p-1.5 flex bg-gray-100 font-bold justify-center items-center">Systematic Examination:</div>
                   <div className="p-1.5 flex flex-col justify-center">
@@ -213,9 +212,7 @@ export default function ClientReportsPage() {
                 </div>
               </div>
 
-              {/* 2-Column Split: Physical vs Blood Investigation */}
               <div className="grid grid-cols-2 gap-3 mb-3 h-[8.5cm]">
-                {/* Left Column: Physical Exam */}
                 <div className="border-2 border-black h-full">
                   <div className="bg-gray-200 border-b-2 border-black p-1 font-bold text-center tracking-wider uppercase">Physical Examination</div>
                   <div className="p-2 space-y-2">
@@ -228,8 +225,6 @@ export default function ClientReportsPage() {
                     <div className="grid grid-cols-2"><span className="font-bold">Skin & Varicose Vein:</span> <span>{emp.examination?.skinVaricose || "Normal"}</span></div>
                   </div>
                 </div>
-
-                {/* Right Column: Blood & Urine Investigation */}
                 <div className="border-2 border-black h-full">
                   <div className="bg-gray-200 border-b-2 border-black p-1 font-bold text-center tracking-wider uppercase">Diagnostic Investigation</div>
                   <div className="p-2 space-y-[0.35rem]">
@@ -247,7 +242,6 @@ export default function ClientReportsPage() {
                 </div>
               </div>
 
-              {/* Conclusion Block with Advice separation */}
               <div className="border-2 border-black p-2 mb-8 flex flex-col gap-1">
                 <div>
                   <span className="font-bold text-gray-700 w-36 inline-block">Conclusion / Remark:</span> 
@@ -261,8 +255,7 @@ export default function ClientReportsPage() {
                 )}
               </div>
 
-              {/* Signature Block (Locked to absolute bottom) */}
-              <div className="absolute bottom-[2.5cm] left-[1.5cm] right-[1.5cm] flex justify-between items-end">
+              <div className="absolute bottom-[${marginBottom}] left-[${marginLeft}] right-[${marginRight}] flex justify-between items-end">
                 <div className="text-center">
                   <div className="border-b border-black w-40 mb-1"></div>
                   <p className="font-bold">Candidate Signature</p>
