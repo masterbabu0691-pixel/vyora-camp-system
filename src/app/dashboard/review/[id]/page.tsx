@@ -21,13 +21,13 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   const getLab = (testName: string) => {
     if (!emp?.labResults) return "Pending";
-    // Flexible search: matches exact or partial test names (e.g., Hb, WBC, Blood Group)
-    const result = emp.labResults.find((l: any) => 
+    const test = emp.labResults.find((l: any) => 
       l.testName.toLowerCase().includes(testName.toLowerCase())
     );
-    return result ? `${result.result || ""} ${result.unit || ""}`.trim() : "Pending";
+    if (!test || !test.result) return "Pending";
+    // Returns result + unit (e.g., "14.2 g/dL")
+    return `${test.result} ${test.unit || ""}`.trim();
   };
-
   const handleFinalize = async () => {
     setSaving(true);
     const res = await fetch("/api/review", {
@@ -120,7 +120,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         </div>
 
         <p className="text-right text-xs font-semibold text-gray-600 mb-2">
-          Exam Date: {emp?.createdAt ? new Date(emp.createdAt).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
+          {emp.camp?.campDate ? new Date(emp.camp.campDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}
         </p>
 
         {/* Demographics Grid (Compacted) */}

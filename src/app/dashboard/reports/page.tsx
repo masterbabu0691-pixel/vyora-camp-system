@@ -74,8 +74,12 @@ export default function ClientReportsPage() {
 
   const getLab = (emp: any, testName: string) => {
     if (!emp.labResults) return "Pending";
-    const test = emp.labResults.find((l: any) => l.testName.toLowerCase().includes(testName.toLowerCase()));
-    return test ? `${test.result || ""} ${test.unit || ""}`.trim() : "Pending";
+    const test = emp.labResults.find((l: any) => 
+      l.testName.toLowerCase().includes(testName.toLowerCase())
+    );
+    if (!test || !test.result) return "Pending";
+    // Returns result + unit (e.g., "14.2 g/dL")
+    return `${test.result} ${test.unit || ""}`.trim();
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
