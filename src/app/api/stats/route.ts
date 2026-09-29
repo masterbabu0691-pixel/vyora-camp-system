@@ -12,14 +12,73 @@ export async function GET(request: Request) {
     // If Admin selects a specific camp, filter by it. Otherwise, show all.
     const filter = campId && campId !== 'all' ? { campId } : {};
 
-    const total = await prisma.employee.count({ where: filter });
-    const doctor = await prisma.employee.count({ where: { ...filter, status: { in: ['DOCTOR_PENDING', 'DOCTOR_IN_PROGRESS'] } } });
-    const lab = await prisma.employee.count({ where: { ...filter, status: { in: ['LAB_PENDING', 'LAB_IN_PROGRESS'] } } });
-    const review = await prisma.employee.count({ where: { ...filter, status: 'FINAL_REVIEW' } });
-    const completed = await prisma.employee.count({ where: { ...filter, status: 'COMPLETED' } });
+    // Execute all counting queries concurrently for massive speed improvements
+    const [
+      total, 
+      preRegistered, 
+      phlebo, 
+      doctor, 
+      review, 
+      completed,
+      
+      // Diagnostics - X-Ray
+      xrayPending, xrayArrived, xrayDone,
+      // Diagnostics - ECG
+      ecgPending, ecgArrived, ecgDone,
+      // Diagnostics - PFT
+      pftPending, pftArrived, pftDone,
+      // Diagnostics - Audiometry
+      audioPending, audioArrived, audioDone
+    ] = await Promise.all([
+      // Core Pipeline (Using your exact database status keys)
+      prisma.employee.count({ where: filter }),
+      prisma.employee.count({ where: { ...filter, status: 'PRE_REGISTERED' } }),
+      prisma.employee.count({ where: { ...filter, status: { in: ['LAB_PENDING', 'LAB_IN_PROGRESS'] } } }),
+      prisma.employee.count({ where: { ...filter, status: { in: ['DOCTOR_PENDING', 'DOCTOR_IN_PROGRESS'] } } }),
+      prisma.employee.count({ where: { ...filter, status: 'FINAL_REVIEW' } }),
+      prisma.employee.count({ where: { ...filter, status: 'COMPLETED' } }),
 
-    return NextResponse.json({ total, doctor, lab, review, completed });
+      // Diagnostics - X-Ray
+      prisma.employee.count({ where: { ...filter, xrayStatus: 'PENDING' } }),
+      prisma.employee.count({ where: { ...filter, xrayStatus: 'ARRIVED' } }),
+      prisma.employee.count({ where: { ...filter, xrayStatus: 'DONE' } }),
+
+      // Diagnostics - ECG
+      prisma.employee.count({ where: { ...filter, ecgStatus: 'PENDING' } }),
+      prisma.employee.count({ where: { ...filter, ecgStatus: 'ARRIVED' } }),
+      prisma.employee.count({ where: { ...filter, ecgStatus: 'DONE' } }),
+
+      // Diagnostics - PFT
+      prisma.employee.count({ where: { ...filter, pftStatus: 'PENDING' } }),
+      prisma.employee.count({ where: { ...filter, pftStatus: 'ARRIVED' } }),
+      prisma.employee.count({ where: { ...filter, pftStatus: 'DONE' } }),
+
+      // Diagnostics - Audiometry
+      prisma.employee.count({ where: { ...filter, audioStatus: 'PENDING' } }),
+      prisma.employee.count({ where: { ...filter, audioStatus: 'ARRIVED' } }),
+      prisma.employee.count({ where: { ...filter, audioStatus: 'DONE' } }),
+    ]);
+
+    // Return nested JSON matching the new Dashboard UI
+    return NextResponse.json({
+      core: {
+        total,
+        preRegistered,
+        phlebo, 
+        doctor,
+        review,
+        completed
+      },
+      diagnostics: {
+        xray: { pending: xrayPending, arrived: xrayArrived, done: xrayDone },
+        ecg: { pending: ecgPending, arrived: ecgArrived, done: ecgDone },
+        pft: { pending: pftPending, arrived: pftArrived, done: pftDone },
+        audio: { pending: audioPending, arrived: audioArrived, done: audioDone }
+      }
+    });
+
   } catch (error) {
-    return NextResponse.json({ total: 0, doctor: 0, lab: 0, review: 0, completed: 0 });
+    console.error("Dashboard Stats Error:", error);
+    return NextResponse.json({ success: false }, { status: 500 });
   }
 }
