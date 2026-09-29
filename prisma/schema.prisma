@@ -96,8 +96,20 @@ model Employee {
   
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-}
 
+  // Specialized Diagnostic Tracking
+  xrayStatus   String?  @default("PENDING") // PENDING, DONE, N/A
+  xrayFile     String?  // URL or Base64 of the uploaded report
+  
+  ecgStatus    String?  @default("PENDING")
+  ecgFile      String?
+  
+  pftStatus    String?  @default("PENDING")
+  pftFile      String?
+  
+  audioStatus  String?  @default("PENDING")
+  audioFile    String?
+}
 model Vitals {
   id         String   @id @default(cuid())
   employeeId String   @unique
