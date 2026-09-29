@@ -12,11 +12,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Invalid data or empty file provided" }, { status: 400 });
     }
 
-    // 1. Get the current employee count to continue serial numbers seamlessly
+    // 1. Get current employee count to continue serial numbers seamlessly
     const currentCount = await prisma.employee.count({ where: { campId } });
     const currentYear = new Date().getFullYear();
 
-    // 2. Map through the Excel rows and generate Sequential Auto-IDs for each person
+    // 2. Map through Excel rows and generate Sequential Auto-IDs
     const newEmployeesData = employees.map((emp: any, index: number) => {
       const serialNo = currentCount + index + 1;
       const randomNum = Math.floor(100000 + Math.random() * 900000);
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       return {
         campId: campId,
         serialNo: serialNo,
-        uhid: `VYH-${currentYear}-${randomNum}`, // Using your standard Vyora format
+        uhid: `VYH-${currentYear}-${randomNum}`, 
         empCode: emp.empCode ? String(emp.empCode) : "",
         name: String(emp.name),
         department: emp.department ? String(emp.department) : "",
@@ -32,11 +32,13 @@ export async function POST(request: Request) {
         age: emp.age ? parseInt(emp.age) : null,
         sex: emp.sex ? String(emp.sex).toUpperCase() : null,
         contactNo: emp.contactNo ? String(emp.contactNo) : "",
-        status: 'REGISTERED' // Using REGISTERED so they immediately show up in the Reception queue!
+        
+        // FIXED: Set to PRE_REGISTERED so they show up on your current roster screen!
+        status: 'PRE_REGISTERED' 
       };
     });
 
-    // 3. Bulk insert into Neon PostgreSQL in one single transaction
+    // 3. Bulk insert into Neon PostgreSQL
     const result = await prisma.employee.createMany({
       data: newEmployeesData,
       skipDuplicates: true,
