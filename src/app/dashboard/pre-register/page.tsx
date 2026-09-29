@@ -51,21 +51,32 @@ export default function PreRegistrationPage() {
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer, { type: "array" }); 
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      
+      // defval: "" ensures missing cells in Excel are treated as empty strings instead of crashing
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
 
-      // Precisely mapped to match your Excel column headers: Name, Emp Code, Department, Designation, Age, Gender, Contact
-      const mappedEmployees = jsonData.map((row: any) => ({
-        name: String(row['Name'] || row['Employee Name'] || row['Patient Name'] || row['Full Name'] || '').trim(),
-        empCode: String(row['Emp Code'] || row['Code'] || row['Employee Code'] || row['Emp ID'] || '').trim(),
-        department: String(row['Department'] || row['Dept'] || '').trim(),
-        designation: String(row['Designation'] || row['Role'] || row['Job Role'] || '').trim(),
-        age: row['Age'] !== '' && !isNaN(Number(row['Age'])) ? parseInt(row['Age']) : null,
-        sex: String(row['Gender'] || row['Sex'] || '').trim(),
-        contactNo: row['Contact'] !== undefined ? String(row['Contact']).trim() : ''
-      })).filter((emp: any) => emp.name !== '');
+      // Robust mapping directly matching your Test - Upload 1.xlsx headers safely
+      const mappedEmployees = jsonData.map((row: any) => {
+        // Handle numbers correctly to avoid NaN crashes
+        let safeAge = null;
+        if (row['Age'] !== "" && row['Age'] !== null && row['Age'] !== undefined) {
+          const parsed = parseInt(row['Age']);
+          if (!isNaN(parsed)) safeAge = parsed;
+        }
+
+        return {
+          name: String(row['Name'] || row['Employee Name'] || row['Patient Name'] || '').trim(),
+          empCode: String(row['Emp Code'] || row['Code'] || row['Emp ID'] || '').trim(),
+          department: String(row['Department'] || row['Dept'] || '').trim(),
+          designation: String(row['Designation'] || row['Role'] || row['Job Role'] || '').trim(),
+          age: safeAge,
+          sex: String(row['Gender'] || row['Sex'] || '').trim(),
+          contactNo: String(row['Contact'] || row['Phone'] || row['Mobile'] || '').trim()
+        };
+      }).filter((emp: any) => emp.name !== ''); // Strip out entirely blank rows
 
       if (mappedEmployees.length === 0) {
-        alert("No valid employees found. Ensure your column header is exactly 'Name'.");
+        alert("No valid employees found. Ensure your first column header is exactly 'Name'.");
         setUploading(false);
         e.target.value = '';
         return;
@@ -122,7 +133,7 @@ export default function PreRegistrationPage() {
 
       <div className="bg-[#002642] p-6 rounded-xl shadow-md text-white">
         <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">1. Select Target Camp</label>
-        <select className="w-full p-3 rounded-md text-gray-900 font-bold outline-none" value={selectedCampId} onChange={(e) => setSelectedCampId(e.target.value)}>
+        <select className="w-full p-3 rounded-md text-gray-900 font-bold outline-none cursor-pointer" value={selectedCampId} onChange={(e) => setSelectedCampId(e.target.value)}>
           <option value="">-- Choose a Client & Camp --</option>
           {clients.map((client: any) => client.camps.map((camp: any) => (
             <option key={camp.id} value={camp.id}>{client.name} - {camp.campName}</option>
