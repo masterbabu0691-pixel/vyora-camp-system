@@ -12,6 +12,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   // Now safely wrapped, this will load quickly and successfully 
   const { data: session, status } = useSession();
 
+  // Added the 4 specialized Diagnostic Stations to the navigation array
   const allNavItems = [
     { name: "Dashboard Home", href: "/dashboard", icon: "📊", roles: ["SUPER_ADMIN", "ADMIN", "RECEPTION", "PHLEBOTOMIST", "DOCTOR", "TECHNICIAN"] },
     { name: "Client Manager", href: "/dashboard/clients", icon: "🏢", roles: ["SUPER_ADMIN", "ADMIN"] },
@@ -20,6 +21,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     { name: "Phlebotomy Queue", href: "/dashboard/phlebotomy", icon: "🩸", roles: ["SUPER_ADMIN", "ADMIN", "PHLEBOTOMIST"] },
     { name: "Doctor Queue", href: "/dashboard/doctor", icon: "🩺", roles: ["SUPER_ADMIN", "ADMIN", "DOCTOR"] },
     { name: "Laboratory Queue", href: "/dashboard/laboratory", icon: "🔬", roles: ["SUPER_ADMIN", "ADMIN", "TECHNICIAN"] },
+    { name: "X-Ray Desk", href: "/dashboard/diagnostics/xray", icon: "🩻", roles: ["SUPER_ADMIN", "ADMIN", "TECHNICIAN"] },
+    { name: "ECG Desk", href: "/dashboard/diagnostics/ecg", icon: "❤️", roles: ["SUPER_ADMIN", "ADMIN", "TECHNICIAN"] },
+    { name: "PFT Desk", href: "/dashboard/diagnostics/pft", icon: "🫁", roles: ["SUPER_ADMIN", "ADMIN", "TECHNICIAN"] },
+    { name: "Audiometry Desk", href: "/dashboard/diagnostics/audio", icon: "🎧", roles: ["SUPER_ADMIN", "ADMIN", "TECHNICIAN"] },
     { name: "Review & Sign-Off", href: "/dashboard/review", icon: "📑", roles: ["SUPER_ADMIN", "ADMIN", "DOCTOR"] },
     { name: "Client Reports", href: "/dashboard/reports", icon: "📈", roles: ["SUPER_ADMIN", "ADMIN"] },
   ];
