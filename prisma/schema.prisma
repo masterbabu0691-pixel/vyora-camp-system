@@ -94,21 +94,29 @@ model Employee {
   labResults     LabResult[]
   conclusion     Conclusion?
   
+  // Specialized Diagnostic Tracking
+  xrayStatus   String?  @default("PENDING") // PENDING, ARRIVED, DONE, N/A
+  xrayFile     String?  
+  xrayTech     String?  // Tracks WHICH staff member did it
+
+  ecgStatus    String?  @default("PENDING")
+  ecgFile      String?
+  ecgTech      String?
+
+  pftStatus    String?  @default("PENDING")
+  pftFile      String?
+  pftTech      String?
+
+  audioStatus  String?  @default("PENDING")
+  audioFile    String?
+  audioTech    String?
+
+  // NEW: Doctor's notes on the above diagnostics
+  diagnosticRemarks String?  @db.Text
+  
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  // Specialized Diagnostic Tracking
-  xrayStatus   String?  @default("PENDING") // PENDING, DONE, N/A
-  xrayFile     String?  // URL or Base64 of the uploaded report
-  
-  ecgStatus    String?  @default("PENDING")
-  ecgFile      String?
-  
-  pftStatus    String?  @default("PENDING")
-  pftFile      String?
-  
-  audioStatus  String?  @default("PENDING")
-  audioFile    String?
 }
 model Vitals {
   id         String   @id @default(cuid())
