@@ -11,7 +11,6 @@ export default function ClientReportsPage() {
   const [movingEmpId, setMovingEmpId] = useState<string | null>(null);
   const [targetCampId, setTargetCampId] = useState("");
   
-  // 1. Fetch Dynamic Margins from Super Admin DB
   const { data: settingsData } = useSWR('/api/settings', fetcher);
   
   const getMargin = (key: string, fallback: string) => 
@@ -22,7 +21,6 @@ export default function ClientReportsPage() {
   const marginLeft = getMargin('MARGIN_LEFT', '1.5cm');
   const marginRight = getMargin('MARGIN_RIGHT', '1.5cm');
 
-  // 2. Fetch Employees for selected camp
   const { data: reportData, isLoading: reportsLoading, mutate: refreshEmployees } = useSWR(
     selectedCampId ? `/api/employees?campId=${selectedCampId}` : null, fetcher
   );
@@ -43,7 +41,6 @@ export default function ClientReportsPage() {
 
   const handlePrint = () => window.print();
 
-  // Handle Moving Employee to a Different Camp
   const handleMoveCamp = async (empId: string) => {
     if (!targetCampId) {
       alert("Please select a target destination camp first.");
@@ -71,7 +68,13 @@ export default function ClientReportsPage() {
     }
   };
 
-  // Excel Export Function for the Selected Camp
+  // Helper for Excel Export formatting
+  const getDiagnosticExcelStatus = (status: string) => {
+    if (!status || status === "N/A") return "N/A";
+    if (status === "DONE") return "Normal / Clear";
+    return status; // 'PENDING' or 'ARRIVED'
+  };
+
   const handleExportExcel = () => {
     if (!reportData?.employees || reportData.employees.length === 0) {
       alert("No employee data available to export.");
@@ -92,6 +95,14 @@ export default function ClientReportsPage() {
       "Weight (kg)": emp.vitals?.weight || "-",
       "BMI": emp.vitals?.bmi || "-",
       "BP": emp.vitals?.bloodPress || "-",
+      
+      // NEW: Added diagnostics directly to the client Excel sheet
+      "X-Ray": getDiagnosticExcelStatus(emp.xrayStatus),
+      "ECG": getDiagnosticExcelStatus(emp.ecgStatus),
+      "PFT": getDiagnosticExcelStatus(emp.pftStatus),
+      "Audiometry": getDiagnosticExcelStatus(emp.audioStatus),
+      "Scan Notes": emp.diagnosticRemarks || "-",
+
       "Fitness Status": emp.conclusion?.fitness || emp.status,
       "Clinical Remarks": emp.conclusion?.remarks || "-"
     }));
@@ -109,6 +120,13 @@ export default function ClientReportsPage() {
     );
     if (!test || !test.result) return "Pending";
     return test.unit ? `${test.result} ${test.unit}` : test.result;
+  };
+
+  // Helper for the printable paper report
+  const getDiagnosticPrintStatus = (status: string) => {
+    if (status === "N/A" || !status) return null;
+    if (status === "DONE") return "Normal / Clear";
+    return "Pending Review";
   };
 
   if (clientsLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading System...</div>;
@@ -190,7 +208,6 @@ export default function ClientReportsPage() {
           </div>
         </div>
 
-        {/* Client-Wise Camp Distribution Selector */}
         <div className="bg-[#002642] p-6 rounded-2xl shadow-md text-white space-y-3">
           <label className="block text-xs font-bold text-teal-300 uppercase tracking-wider">Select Client Organization & Camp</label>
           <select 
@@ -273,7 +290,7 @@ export default function ClientReportsPage() {
                           onClick={() => { setMovingEmpId(emp.id); setTargetCampId(""); }}
                           className="bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-amber-100 transition shadow-sm"
                         >
-                          🔄 Move Camp
+                          🔄 Move
                         </button>
                       )}
                     </td>
@@ -333,6 +350,19 @@ export default function ClientReportsPage() {
                       <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">ENT / Oral</td><td className="py-0.5 font-bold">{emp.examination?.ent || "Normal"} / {emp.examination?.oral || "Normal"}</td></tr>
                       <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Lungs & Chest</td><td className="py-0.5 font-bold">{emp.examination?.lungsChest || "Clear"}</td></tr>
                       <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">CardioVascular</td><td className="py-0.5 font-bold">{emp.examination?.cardiovascular || "Normal S1 S2"}</td></tr>
+                      
+                      {/* NEW: BATCH PRINT DIAGNOSTIC ROWS */}
+                      {emp.xrayStatus && emp.xrayStatus !== "N/A" && <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">X-Ray Chest</td><td className="py-0.5 font-bold">{getDiagnosticPrintStatus(emp.xrayStatus)}</td></tr>}
+                      {emp.ecgStatus && emp.ecgStatus !== "N/A" && <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">ECG</td><td className="py-0.5 font-bold">{getDiagnosticPrintStatus(emp.ecgStatus)}</td></tr>}
+                      {emp.pftStatus && emp.pftStatus !== "N/A" && <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">PFT</td><td className="py-0.5 font-bold">{getDiagnosticPrintStatus(emp.pftStatus)}</td></tr>}
+                      {emp.audioStatus && emp.audioStatus !== "N/A" && <tr className="border-b"><td className="py-0.5 text-gray-600 font-semibold">Audiometry</td><td className="py-0.5 font-bold">{getDiagnosticPrintStatus(emp.audioStatus)}</td></tr>}
+                      
+                      {emp.diagnosticRemarks && (
+                        <tr className="border-b bg-gray-50">
+                          <td className="py-0.5 text-gray-700 font-bold align-top">Scans Note:</td>
+                          <td className="py-0.5 font-bold text-black italic">{emp.diagnosticRemarks}</td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
