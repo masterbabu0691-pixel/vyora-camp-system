@@ -26,12 +26,23 @@ model User {
 
 // Defines the exact roles allowed in your system
 enum Role {
+  // Defines the exact roles allowed in your system
+enum Role {
   SUPER_ADMIN
   ADMIN
   RECEPTION
-  DOCTOR
+  NURSING
   PHLEBOTOMIST
+  LAB_OFFICIAL
   TECHNICIAN
+  XRAY_TECHNICIAN
+  ECG_TECHNICIAN
+  PFT_TECHNICIAN
+  AUDIO_TECHNICIAN
+  DOCTOR_ON_SITE
+  FINAL_DR_REVIEW
+  DOCTOR
+}
 }
 
 // ==========================================
