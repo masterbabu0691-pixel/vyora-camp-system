@@ -190,15 +190,31 @@ export default function SuperAdminPage() {
               <div><label className="block text-xs font-bold text-gray-500 mb-1">Full Name *</label><input required type="text" className="w-full border-2 p-2.5 rounded-lg font-semibold outline-none focus:border-[#008C8C]" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="e.g. Dr. Ramesh" /></div>
               <div><label className="block text-xs font-bold text-gray-500 mb-1">Username (Login ID) *</label><input required type="text" className="w-full border-2 p-2.5 rounded-lg font-semibold outline-none focus:border-[#008C8C]" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} placeholder="e.g. dr.ramesh" /></div>
               <div><label className="block text-xs font-bold text-gray-500 mb-1">Password *</label><input required type="password" minLength={6} className="w-full border-2 p-2.5 rounded-lg font-semibold outline-none focus:border-[#008C8C]" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} /></div>
+              
+              {/* COMPREHENSIVE ROLE-BASED ACCESS CONTROL (RBAC) DROPDOWN */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">System Role *</label>
                 <select required className="w-full border-2 p-2.5 rounded-lg font-semibold outline-none focus:border-[#008C8C]" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                  <option value="RECEPTION">Receptionist</option>
-                  <option value="PHLEBOTOMIST">Phlebotomist</option>
-                  <option value="TECHNICIAN">Lab Technician</option>
-                  <option value="DOCTOR">Doctor (Reviewer)</option>
-                  <option value="ADMIN">Camp Admin</option>
-                  <option value="SUPER_ADMIN">Super Admin</option>
+                  <optgroup label="Core Operations">
+                    <option value="RECEPTION">Receptionist</option>
+                    <option value="NURSING">Nursing Staff</option>
+                    <option value="ADMIN">Camp Admin</option>
+                    <option value="SUPER_ADMIN">Super Admin</option>
+                  </optgroup>
+                  <optgroup label="Laboratory & Samples">
+                    <option value="PHLEBOTOMIST">Phlebotomist (Blood Draw)</option>
+                    <option value="LAB_OFFICIAL">Lab Official / Technician</option>
+                  </optgroup>
+                  <optgroup label="Specialized Diagnostics">
+                    <option value="XRAY_TECHNICIAN">X-Ray Technician</option>
+                    <option value="ECG_TECHNICIAN">ECG Technician</option>
+                    <option value="PFT_TECHNICIAN">PFT Technician</option>
+                    <option value="AUDIO_TECHNICIAN">Audiometry Technician</option>
+                  </optgroup>
+                  <optgroup label="Clinical Review">
+                    <option value="DOCTOR_ON_SITE">Doctor (On-Site Checkup)</option>
+                    <option value="FINAL_DR_REVIEW">Final Review Doctor (Sign-off)</option>
+                  </optgroup>
                 </select>
               </div>
               <button type="submit" disabled={saving} className="w-full bg-[#002642] text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition mt-2 shadow-md">{saving ? "Creating..." : "Create Account"}</button>
@@ -219,7 +235,7 @@ export default function SuperAdminPage() {
                           <p className="font-bold text-[#002642]">{user.name}</p>
                           <p className="text-xs text-gray-500 font-mono mt-0.5">ID: {user.username}</p>
                         </td>
-                        <td className="p-4"><span className="text-[10px] font-black tracking-wider bg-[#008C8C] text-white px-2 py-1 rounded-md uppercase">{user.role}</span></td>
+                        <td className="p-4"><span className="text-[10px] font-black tracking-wider bg-[#008C8C] text-white px-2 py-1 rounded-md uppercase">{user.role.replace('_', ' ')}</span></td>
                         <td className="p-4 text-right space-x-3">
                           <button onClick={() => handleToggleUser(user.id, user.isActive)} className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${user.isActive ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"}`}>{user.isActive ? "Suspend" : "Activate"}</button>
                           <button onClick={() => handleDeleteUser(user.id)} className="text-xs font-bold text-red-500 hover:bg-red-50 px-2 py-1.5 rounded">Delete</button>
