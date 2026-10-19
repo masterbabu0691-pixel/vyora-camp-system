@@ -29,21 +29,11 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
   if (isLoading) return <div className="p-8 font-bold animate-pulse text-[#002642]">Loading Report Data...</div>;
 
-  const getLab = (testName: string) => {
-    if (!emp?.labResults) return "Pending";
-    const test = emp.labResults.find((l: any) => 
-      l.testName.toLowerCase().includes(testName.toLowerCase())
-    );
-    if (!test || !test.result) return "Pending";
-    return `${test.result} ${test.unit || ""}`.trim();
-  };
-
   const handleFinalize = async () => {
     setSaving(true);
     const res = await fetch("/api/review", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Added diagnosticRemarks to the payload
       body: JSON.stringify({ employeeId, fitness, remarks, diagnosticRemarks })
     });
     if (res.ok) {
@@ -122,7 +112,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           )}
         </div>
         
-        {/* NEW: Diagnostic Remarks Field */}
+        {/* Diagnostic Remarks Field */}
         <div className="mt-4 pt-4 border-t border-gray-100">
           <label className="block text-sm font-bold text-[#002642] mb-2">Doctor's Notes on Diagnostics (Optional)</label>
           <textarea 
@@ -223,7 +213,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 {emp?.pftStatus && emp.pftStatus !== "N/A" && <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">PFT</td><td className="py-1 font-bold">{getDiagnosticPrintStatus(emp.pftStatus)}</td></tr>}
                 {emp?.audioStatus && emp.audioStatus !== "N/A" && <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">Audiometry</td><td className="py-1 font-bold">{getDiagnosticPrintStatus(emp.audioStatus)}</td></tr>}
                 
-                {/* NEW: Displays the diagnostic remarks dynamically on the report if provided */}
                 {diagnosticRemarks && (
                   <tr className="border-b bg-gray-50">
                     <td className="py-1 text-gray-700 font-bold align-top">Scans Note:</td>
@@ -234,19 +223,25 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             </table>
           </div>
 
+          {/* DYNAMIC LABORATORY INVESTIGATIONS LOOP */}
           <div>
             <h3 className="bg-gray-200 text-black px-2 py-1 font-bold text-[11px] mb-2 text-center border border-black">LABORATORY INVESTIGATIONS</h3>
             <table className="w-full text-[11px]">
               <tbody>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold w-1/2">Blood Group</td><td className="py-1 font-bold">{getLab('Blood Group')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">Hb</td><td className="py-1 font-bold">{getLab('Hb')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">WBC</td><td className="py-1 font-bold">{getLab('WBC')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">Platelets</td><td className="py-1 font-bold">{getLab('Platelets')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">ESR</td><td className="py-1 font-bold">{getLab('ESR')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">SGPT</td><td className="py-1 font-bold">{getLab('SGPT')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">S. Creatinine</td><td className="py-1 font-bold">{getLab('Creatinine')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">RBS</td><td className="py-1 font-bold">{getLab('RBS')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">Urine R/M</td><td className="py-1 font-bold">{getLab('Urine')}</td></tr>
+                {emp?.labResults && emp.labResults.length > 0 ? (
+                  emp.labResults.map((lab: any, index: number) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-1 text-gray-600 font-semibold w-1/2">{lab.testName}</td>
+                      <td className="py-1 font-bold">
+                        {lab.result} {lab.unit || ""}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="py-2 text-center text-gray-500 italic">No laboratory records entered.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
