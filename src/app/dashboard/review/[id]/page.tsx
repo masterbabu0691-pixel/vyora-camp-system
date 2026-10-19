@@ -246,7 +246,6 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">SGPT</td><td className="py-1 font-bold">{getLab('SGPT')}</td></tr>
                 <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">S. Creatinine</td><td className="py-1 font-bold">{getLab('Creatinine')}</td></tr>
                 <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">RBS</td><td className="py-1 font-bold">{getLab('RBS')}</td></tr>
-                <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">Widal Profile</td><td className="py-1 font-bold">{getLab('Widal')}</td></tr>
                 <tr className="border-b"><td className="py-1 text-gray-600 font-semibold">Urine R/M</td><td className="py-1 font-bold">{getLab('Urine')}</td></tr>
               </tbody>
             </table>
