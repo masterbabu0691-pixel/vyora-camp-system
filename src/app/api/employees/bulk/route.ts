@@ -12,11 +12,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Invalid data or empty file provided" }, { status: 400 });
     }
 
-    // 1. Get current employee count to continue serial numbers seamlessly
+    // --- 1. NEW LOGIC: Fetch the camp to read the active diagnostic checklist ---
+    const camp = await prisma.camp.findUnique({ where: { id: campId } });
+    const tests = camp?.testChecklist || "";
+
+    // Determine statuses ONCE for the entire batch of patients
+    // If the test is checked, it sets "PENDING". If not, it forces "N/A" (Hiding it from the system entirely).
+    const xrayStatus = tests.includes("X-Ray") ? "PENDING" : "N/A";
+    const ecgStatus = tests.includes("ECG") ? "PENDING" : "N/A";
+    const pftStatus = tests.includes("PFT") ? "PENDING" : "N/A";
+    const audioStatus = tests.includes("Audiometry") ? "PENDING" : "N/A";
+
+    // 2. Get current employee count to continue serial numbers seamlessly
     const currentCount = await prisma.employee.count({ where: { campId } });
     const currentYear = new Date().getFullYear();
 
-    // 2. Map through Excel rows and generate Sequential Auto-IDs
+    // 3. Map through Excel rows and generate Sequential Auto-IDs + Dynamic Statuses
     const newEmployeesData = employees.map((emp: any, index: number) => {
       const serialNo = currentCount + index + 1;
       const randomNum = Math.floor(100000 + Math.random() * 900000);
@@ -33,12 +44,17 @@ export async function POST(request: Request) {
         sex: emp.sex ? String(emp.sex).toUpperCase() : null,
         contactNo: emp.contactNo ? String(emp.contactNo) : "",
         
-        // FIXED: Set to PRE_REGISTERED so they show up on your current roster screen!
-        status: 'PRE_REGISTERED' 
+        status: 'PRE_REGISTERED', 
+
+        // --- INJECT DYNAMIC DIAGNOSTIC STATUSES HERE ---
+        xrayStatus: xrayStatus,
+        ecgStatus: ecgStatus,
+        pftStatus: pftStatus,
+        audioStatus: audioStatus
       };
     });
 
-    // 3. Bulk insert into Neon PostgreSQL
+    // 4. Bulk insert into Neon PostgreSQL
     const result = await prisma.employee.createMany({
       data: newEmployeesData,
       skipDuplicates: true,
