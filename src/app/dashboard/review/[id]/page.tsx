@@ -138,8 +138,8 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
         }
       `}} />
 
-      <div className="bg-white p-6 rounded-xl shadow-md border flex flex-col md:flex-row gap-4 justify-between items-center print:hidden">
-        <div className="flex gap-4 items-center flex-1">
+      <div className="bg-white p-6 rounded-xl shadow-md border flex flex-col xl:flex-row gap-4 justify-between items-center print:hidden">
+        <div className="flex gap-4 items-center flex-1 w-full xl:w-auto">
           <label className="font-bold text-[#002642]">Conclusion:</label>
           <select className="border-2 border-gray-200 p-2 rounded-lg bg-gray-50 font-bold outline-none focus:border-[#008C8C]" value={fitness} onChange={e => setFitness(e.target.value)}>
             <option>FIT</option>
@@ -149,8 +149,16 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
           </select>
           <input type="text" className="border-2 border-gray-200 p-2 rounded-lg w-full max-w-sm font-semibold outline-none focus:border-[#008C8C]" placeholder="Overall Remarks..." value={remarks} onChange={e => setRemarks(e.target.value)} />
         </div>
-        <div className="flex gap-4">
-          <button onClick={() => window.print()} className="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-black transition">
+        
+        {/* NEW BUTTONS SECTION */}
+        <div className="flex flex-wrap gap-3 w-full xl:w-auto justify-end">
+          <button 
+            onClick={() => router.push(`/dashboard/vision-report/${employeeId}`)} 
+            className="bg-indigo-600 text-white px-5 py-2 rounded-lg font-bold shadow-md hover:bg-indigo-700 transition flex items-center gap-2"
+          >
+            👁️ Print Vision Cert
+          </button>
+          <button onClick={() => window.print()} className="bg-gray-800 text-white px-5 py-2 rounded-lg font-bold shadow-md hover:bg-black transition">
             🖨️ Print Report
           </button>
           <button onClick={handleFinalize} disabled={saving} className="bg-[#008C8C] text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-teal-600 disabled:opacity-50 transition">
