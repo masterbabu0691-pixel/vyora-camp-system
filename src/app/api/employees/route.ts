@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 export const dynamic = 'force-dynamic';
 const prisma = new PrismaClient();
 
+// 1. READ EMPLOYEES (Your existing GET function)
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const queue = searchParams.get('queue');
@@ -11,7 +12,6 @@ export async function GET(request: Request) {
   const campId = searchParams.get('campId');
 
   try {
-    // 1. Fetch Single Employee Data (Used by Doctor/Lab/Review UI)
     if (id) {
       const employee = await prisma.employee.findUnique({
         where: { id },
@@ -20,20 +20,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ employee });
     }
 
-    // 2. THE STRICT PIPELINE ROUTER
     let whereClause: any = {};
     
     if (queue === 'reception') {
-      whereClause.status = 'REGISTERED'; // Step 1: New Uploads
+      whereClause.status = 'REGISTERED';
     } else if (queue === 'doctor') {
-      // FIX: Accept both RECEPTION_DONE and legacy DOCTOR_PENDING so no patients are hidden
       whereClause.status = { in: ['RECEPTION_DONE', 'DOCTOR_PENDING'] }; 
     } else if (queue === 'phlebotomy') {
-      whereClause.status = 'DOC_DONE'; // Step 3: Examined by Doctor
+      whereClause.status = 'DOC_DONE'; 
     } else if (queue === 'laboratory') {
-      whereClause.status = 'LAB_PENDING'; // Step 4: Samples Collected by Phlebo
+      whereClause.status = 'LAB_PENDING'; 
     } else if (queue === 'review') {
-      whereClause.status = 'LAB_DONE'; // Step 5: Tests complete, ready for Final Report
+      whereClause.status = 'LAB_DONE'; 
     }
 
     if (campId) whereClause.campId = campId;
@@ -55,6 +53,59 @@ export async function GET(request: Request) {
   }
 }
 
+// 2. CREATE / SAVE MANUAL EMPLOYEE (The missing POST function with Diagnostic Fix)
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, campId, name, uhid, serialNo, age, sex, department, empCode, contactNo } = body;
+
+    if (!campId || !name) {
+      return NextResponse.json({ error: 'Camp ID and Name are required' }, { status: 400 });
+    }
+
+    // Fetch the camp to see which diagnostics are active for this specific client
+    const camp = await prisma.camp.findUnique({ where: { id: campId } });
+    if (!camp) return NextResponse.json({ error: 'Camp not found' }, { status: 404 });
+
+    // Dynamically assign PENDING or N/A based on camp configuration
+    const xrayStatus = camp.xrayActive ? "PENDING" : "N/A";
+    const ecgStatus = camp.ecgActive ? "PENDING" : "N/A";
+    const pftStatus = camp.pftActive ? "PENDING" : "N/A";
+    const audioStatus = camp.audioActive ? "PENDING" : "N/A";
+
+    if (id) {
+      // If ID exists, we are UPDATING an existing manual pre-registration
+      const updatedEmployee = await prisma.employee.update({
+        where: { id },
+        data: {
+          name, uhid, serialNo: serialNo ? Number(serialNo) : null, 
+          age: age ? String(age) : null, sex, department, empCode, contactNo
+        }
+      });
+      return NextResponse.json({ success: true, employee: updatedEmployee });
+    } else {
+      // If no ID exists, we are CREATING a brand new manual pre-registration
+      const newEmployee = await prisma.employee.create({
+        data: {
+          campId, name, uhid: uhid || `MANUAL-${Date.now()}`, 
+          serialNo: serialNo ? Number(serialNo) : null, 
+          age: age ? String(age) : null, sex, department, empCode, contactNo,
+          status: 'REGISTERED',
+          xrayStatus,  // Safe dynamic diagnostic injections
+          ecgStatus,
+          pftStatus,
+          audioStatus
+        }
+      });
+      return NextResponse.json({ success: true, employee: newEmployee });
+    }
+  } catch (error: any) {
+    console.error("Manual Save Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// 3. DELETE EMPLOYEE (Your existing DELETE function)
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
@@ -62,7 +113,6 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ error: 'Employee ID required' }, { status: 400 });
 
   try {
-    // Delete related records first to avoid foreign key constraints, then delete employee
     await prisma.labResult.deleteMany({ where: { employeeId: id } });
     await prisma.vitals.deleteMany({ where: { employeeId: id } });
     await prisma.examination.deleteMany({ where: { employeeId: id } });
