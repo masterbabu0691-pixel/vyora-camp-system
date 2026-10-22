@@ -4,10 +4,11 @@ import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
+// EXACT test names to trigger the N/A logic in the backend
 const AVAILABLE_TESTS = [
   "Vitals (BP/BMI)", "Vision", "CBC", "RBS", 
   "Urine Routine", "Stool Culture", "Widal", 
-  "ECG", "Sputum", "Audiometry", "X-Ray Chest"
+  "X-Ray", "ECG", "PFT", "Audiometry"
 ];
 
 export default function ClientManagerPage() {
@@ -59,7 +60,6 @@ export default function ClientManagerPage() {
     setSaving(false);
   };
 
-  // CLIENT DELETE FUNCTION
   const handleDeleteClient = async (clientId: string) => {
     if (confirm("Are you sure you want to delete this Client? This will also delete all associated camps and employees!")) {
       try {
@@ -155,7 +155,6 @@ export default function ClientManagerPage() {
                     <div className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full">
                       {client.camps?.length || 0} Camps Recorded
                     </div>
-                    {/* NEW PERMANENT DELETE BUTTON */}
                     <button 
                       onClick={() => handleDeleteClient(client.id)}
                       className="bg-red-50 border border-red-200 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition shadow-sm"
