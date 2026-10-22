@@ -69,7 +69,7 @@ export default function BulkVisionPrintPage() {
         </div>
       )}
 
-      {/* --- GLOBAL PRINT CSS TO ENSURE MULTI-PAGE PRINTING --- */}
+      {/* --- STRICT GLOBAL PRINT CSS FOR EXACT 1-PAGE FIT --- */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           @page { size: A4; margin: 0; }
@@ -79,14 +79,20 @@ export default function BulkVisionPrintPage() {
             position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; background: white;
           }
           .a4-print-page {
-            width: 210mm; height: 297mm;
-            padding-top: 4.5cm; padding-bottom: 2cm; padding-left: 1.5cm; padding-right: 1.5cm;
+            width: 210mm; 
+            height: 297mm;
+            padding-top: 4.5cm; 
+            padding-bottom: 2cm; 
+            padding-left: 1.5cm; 
+            padding-right: 1.5cm;
             box-sizing: border-box;
             page-break-after: always;
             page-break-inside: avoid;
             background: white;
+            overflow: hidden; /* Prevents 1 extra pixel from creating a blank page */
+            display: flex;
+            flex-direction: column;
           }
-          /* Removes the blank page after the last report */
           .a4-print-page:last-child { page-break-after: auto; }
         }
       `}} />
@@ -101,17 +107,17 @@ export default function BulkVisionPrintPage() {
           const colorBlindness = emp.examination?.colorBlindness || "Normal";
 
           return (
-            <div key={emp.id} className="a4-print-page bg-white p-8 shadow-sm border print:shadow-none print:border-none print:p-0 text-black mx-auto max-w-4xl relative">
+            <div key={emp.id} className="a4-print-page bg-white p-6 shadow-sm border print:shadow-none print:border-none print:p-0 text-black mx-auto max-w-4xl">
               
-              <div className="flex justify-end mb-4">
-                <h2 className="text-lg font-bold text-black uppercase tracking-wide border-b border-black pb-1 inline-block">
+              <div className="flex justify-end mb-3">
+                <h2 className="text-lg font-bold text-black uppercase tracking-wide border-b border-black pb-0.5 inline-block">
                   EYE CHECK UP
                 </h2>
               </div>
 
-              {/* Patient Demographics Box */}
-              <div className="border border-black p-3 mb-6 text-[13px] leading-relaxed">
-                <div className="flex flex-wrap gap-x-8 gap-y-2 mb-2 border-b border-gray-300 pb-2">
+              {/* Patient Demographics Box (Tightened) */}
+              <div className="border border-black p-2.5 mb-4 text-[13px] leading-snug">
+                <div className="flex flex-wrap gap-x-8 gap-y-1.5 mb-1.5 border-b border-gray-300 pb-1.5">
                   <div className="flex-1 min-w-[250px]">
                     <span className="font-semibold">Name of Patient :</span> <span className="font-bold border-b border-black px-4">{emp.name}</span>
                   </div>
@@ -120,7 +126,7 @@ export default function BulkVisionPrintPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-x-8 gap-y-2 mb-2 border-b border-gray-300 pb-2">
+                <div className="flex flex-wrap gap-x-8 gap-y-1.5 mb-1.5 border-b border-gray-300 pb-1.5">
                   <div className="flex-1 min-w-[200px]">
                     <span className="font-semibold">Company / Client :</span> <span className="font-bold border-b border-black px-4 uppercase">{emp.camp?.client?.name || "-"}</span>
                   </div>
@@ -132,7 +138,7 @@ export default function BulkVisionPrintPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-x-8 gap-y-2 mb-2">
+                <div className="flex flex-wrap gap-x-8 gap-y-1.5 mb-1.5">
                   <div className="flex-1 min-w-[250px]">
                     <span className="font-semibold">Attending Consultant :</span> <span className="border-b border-black px-16 inline-block"></span>
                   </div>
@@ -141,41 +147,41 @@ export default function BulkVisionPrintPage() {
                   </div>
                 </div>
                 
-                <div className="mt-3">
+                <div className="mt-2">
                   <span className="font-semibold">Chief Complaints :</span> <span className="border-b border-black px-16 inline-block w-[70%]"></span>
                 </div>
               </div>
 
-              {/* Vision Data */}
-              <div className="mb-6 text-[13px]">
-                <h3 className="font-bold mb-2">Examination of Eye :</h3>
-                <p className="font-semibold ml-4 mb-2">1. Vision :</p>
+              {/* Vision Data (Tightened) */}
+              <div className="mb-4 text-[13px] flex-1">
+                <h3 className="font-bold mb-1.5">Examination of Eye :</h3>
+                <p className="font-semibold ml-4 mb-1.5">1. Vision :</p>
                 
-                <div className="ml-8 mb-4">
+                <div className="ml-8 mb-3">
                   <table className="w-[85%] border-collapse border border-black text-center text-[13px]">
                     <thead>
                       <tr>
-                        <th className="border border-black p-1.5 w-1/2">Visual</th>
-                        <th className="border border-black p-1.5 w-1/4">Right</th>
-                        <th className="border border-black p-1.5 w-1/4">Left</th>
+                        <th className="border border-black p-1 w-1/2">Visual</th>
+                        <th className="border border-black p-1 w-1/4">Right</th>
+                        <th className="border border-black p-1 w-1/4">Left</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="border border-black p-1.5 text-left pl-2">With Glasses ( Corrected Vision )</td>
-                        <td className="border border-black p-1.5 h-7"></td>
-                        <td className="border border-black p-1.5 h-7"></td>
+                        <td className="border border-black p-1 text-left pl-2">With Glasses ( Corrected Vision )</td>
+                        <td className="border border-black p-1 h-6"></td>
+                        <td className="border border-black p-1 h-6"></td>
                       </tr>
                       <tr>
-                        <td className="border border-black p-1.5 text-left pl-2">Without Glasses ( Uncorrected Vision )</td>
-                        <td className="border border-black p-1.5 font-bold h-7">{rightEye}</td>
-                        <td className="border border-black p-1.5 font-bold h-7">{leftEye}</td>
+                        <td className="border border-black p-1 text-left pl-2">Without Glasses ( Uncorrected Vision )</td>
+                        <td className="border border-black p-1 font-bold h-6">{rightEye}</td>
+                        <td className="border border-black p-1 font-bold h-6">{leftEye}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <div className="ml-8 mb-6">
+                <div className="ml-8 mb-4">
                   <table className="w-[85%] border-collapse border border-black text-center text-[13px]">
                     <thead>
                       <tr>
@@ -189,43 +195,43 @@ export default function BulkVisionPrintPage() {
                     </thead>
                     <tbody>
                       <tr>
-                        <td className="border border-black p-1 font-semibold" rowSpan={2}>RE</td>
-                        <td className="border border-black p-1 text-left pl-2">Distance</td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
+                        <td className="border border-black p-0.5 font-semibold" rowSpan={2}>RE</td>
+                        <td className="border border-black p-0.5 text-left pl-2">Distance</td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
                       </tr>
                       <tr>
-                        <td className="border border-black p-1 text-left pl-2">Near</td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
+                        <td className="border border-black p-0.5 text-left pl-2">Near</td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
                       </tr>
                       <tr>
-                        <td className="border border-black p-1 font-semibold" rowSpan={2}>LE</td>
-                        <td className="border border-black p-1 text-left pl-2">Distance</td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
+                        <td className="border border-black p-0.5 font-semibold" rowSpan={2}>LE</td>
+                        <td className="border border-black p-0.5 text-left pl-2">Distance</td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
                       </tr>
                       <tr>
-                        <td className="border border-black p-1 text-left pl-2">Near</td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
-                        <td className="border border-black p-1 h-6"></td>
+                        <td className="border border-black p-0.5 text-left pl-2">Near</td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
+                        <td className="border border-black p-0.5 h-5"></td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
-                <div className="ml-4 space-y-4">
+                <div className="ml-4 space-y-3">
                   <div>
                     <p className="font-semibold mb-1">2. SLE (Slit lamp examinations)</p>
-                    <div className="ml-6 space-y-1">
+                    <div className="ml-6 space-y-0.5">
                       <p>1. Cornea <span className="ml-6">:</span></p>
                       <p>2. Conjunctiva <span className="ml-1">:</span></p>
                       <p>3. Iris <span className="ml-11">:</span></p>
@@ -243,12 +249,13 @@ export default function BulkVisionPrintPage() {
                     <span className="font-normal border-b border-black px-4 ml-2">{colorBlindness}</span>
                   </p>
                   
-                  <p className="font-semibold pt-2">7. Remark <span className="ml-11">:</span></p>
-                  <p className="font-semibold pt-4">Clinical Advice :</p>
+                  <p className="font-semibold pt-1">7. Remark <span className="ml-11">:</span></p>
+                  <p className="font-semibold pt-2">Clinical Advice :</p>
                 </div>
               </div>
 
-              <div className="mt-20 flex justify-between items-end pb-8">
+              {/* Footer pushes to the very bottom of the page */}
+              <div className="mt-auto flex justify-between items-end pb-2">
                 <div className="text-center">
                   <p className="font-bold text-[14px]">Ophthalmologist</p>
                   <p className="text-[13px]">MS (Opthal)</p>
