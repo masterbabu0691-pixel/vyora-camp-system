@@ -23,26 +23,38 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    
+    // 1. Calculate sequential Serial Number for this specific camp
+    const campEmployeeCount = await prisma.employee.count({
+      where: { campId: body.campId }
+    });
+    const serialNo = campEmployeeCount + 1;
+    
+    // 2. Generate professional sequential IDs
+    const currentYear = new Date().getFullYear();
+    const uhid = `UHID-${currentYear}-${String(serialNo).padStart(4, "0")}`;
+    const certificateNo = `VHC/${currentYear}/CERT/${String(serialNo).padStart(4, "0")}`;
     
     const newEmployee = await prisma.employee.create({
       data: {
         campId: body.campId,
-        serialNo: Math.floor(Math.random() * 1000), 
-        uhid: `VYH-2026-${randomNum}`,
+        serialNo: serialNo, 
+        uhid: uhid,
+        certificateNo: certificateNo,
         empCode: body.empCode || "",
         name: body.name,
         department: body.department || "",
-        designation: body.designation || "", // Added Designation
-        
+        designation: body.designation || "",
         age: body.age ? parseInt(body.age) : null,
         sex: body.sex || null,
         contactNo: body.contactNo || "",
         status: 'PRE_REGISTERED'
       }
     });
+    
     return NextResponse.json({ success: true, employee: newEmployee });
   } catch (error) {
-    return NextResponse.json({ success: false }, { status: 500 });
+    console.error("Pre-registration error:", error);
+    return NextResponse.json({ success: false, error: "Failed to register employee" }, { status: 500 });
   }
 }

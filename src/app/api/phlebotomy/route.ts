@@ -6,31 +6,20 @@ const prisma = new PrismaClient();
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { employeeId, bloodCollected, urineCollected, barcode } = body;
     
-    // Save sample status, link the barcode, and push to Lab Queue
+    // Save sample status and push to Lab Queue exactly as you defined
     await prisma.employee.update({
-      where: { id: employeeId },
+      where: { id: body.employeeId },
       data: { 
-        bloodCollected,
-        urineCollected,
-        barcode: barcode || null, // Saves the barcode securely
-        status: 'LAB_PENDING' 
+        bloodCollected: body.bloodCollected,
+        urineCollected: body.urineCollected,
+        status: 'LAB_PENDING' // This perfectly links to the Laboratory step in our router above
       }
     });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error("Phlebotomy Save Error:", error);
-
-    // P2002 is Prisma's exact error code for a Unique Constraint violation
-    if (error.code === 'P2002' && error.meta?.target?.includes('barcode')) {
-      return NextResponse.json(
-        { success: false, error: "This barcode is already assigned to another patient! Please use a new vial." }, 
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Failed to update samples" }, { status: 500 });
   }
 }

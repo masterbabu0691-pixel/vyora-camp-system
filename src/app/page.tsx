@@ -29,7 +29,53 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file || !selectedCamp) {
+    alert("Please select a camp first!");
+    return;
+  }
 
+  const reader = new FileReader();
+  reader.onload = async (evt) => {
+    try {
+      const bstr = evt.target?.result;
+      const wb = XLSX.read(bstr, { type: 'binary' });
+      const wsname = wb.SheetNames[0];
+      const ws = wb.Sheets[wsname];
+      const data = XLSX.utils.sheet_to_json(ws);
+
+      // Map Excel column headers to our database keys
+      const mappedEmployees = data.map((row: any) => ({
+        name: row['Name'] || row['Employee Name'] || '',
+        empCode: row['Emp Code'] || row['Code'] || '',
+        department: row['Department'] || '',
+        designation: row['Designation'] || '',
+        age: row['Age'] || null,
+        sex: row['Sex'] || row['Gender'] || '',
+        contactNo: row['Contact'] || row['Mobile'] || ''
+      })).filter((emp) => emp.name !== ''); // Skip empty rows
+
+      const response = await fetch('/api/employees/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campId: selectedCamp, employees: mappedEmployees }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert(`Successfully uploaded ${result.count} employees!`);
+        fetchEmployees(); // Refresh your table
+      } else {
+        alert("Upload failed.");
+      }
+    } catch (error) {
+      console.error("Error parsing Excel:", error);
+      alert("Invalid Excel file format.");
+    }
+  };
+  reader.readAsBinaryString(file);
+ };
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-10 rounded-xl shadow-xl w-full max-w-md border border-gray-100">
