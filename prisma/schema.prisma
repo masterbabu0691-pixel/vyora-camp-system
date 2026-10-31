@@ -2,72 +2,135 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// We manually configure SQLite here
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// --- Users & Setup ---
+// ==========================================
+// 1. RBAC & USER MANAGEMENT
+// ==========================================
 model User {
-  id       String @id @default(cuid())
-  name     String
-  username String @unique
-  password String 
-  role     String @default("RECEPTION") 
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  password  String // Will store hashed passwords, never plain text
+  role      Role     @default(RECEPTION)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations for Audit Logs
+  auditLogs AuditLog[]
 }
 
+// Defines the exact roles allowed in your system
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  RECEPTION
+  NURSING
+  PHLEBOTOMIST
+  LAB_OFFICIAL
+  TECHNICIAN
+  XRAY_TECHNICIAN
+  ECG_TECHNICIAN
+  PFT_TECHNICIAN
+  AUDIO_TECHNICIAN
+  DOCTOR_ON_SITE
+  FINAL_DR_REVIEW
+  DOCTOR
+}
+
+// ==========================================
+// 2. CLIENT & CAMP MANAGEMENT
+// ==========================================
 model Client {
-  id         String @id @default(cuid())
-  clientCode String @unique
+  id         String   @id @default(cuid())
+  clientCode String   @unique // Auto-generated: e.g., VHC-CL-2026-001
   name       String
   camps      Camp[]
+  createdAt  DateTime @default(now())
 }
 
 model Camp {
-  id           String     @id @default(cuid())
-  campName     String
-  campDate     DateTime
-  clientId     String
-  client       Client     @relation(fields: [clientId], references: [id])
-  employees    Employee[]
+  id       String   @id @default(cuid())
+  campName String
+  campDate DateTime
+  clientId String
+  client   Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  // HR & Field Team Tracking
+  leadDoctor      String?
+  phlebotomist    String?
+  campCoordinator String?
+  technician      String?
+
+  // Configurable Test Checklist stored as comma-separated or JSON string
+  testChecklist String @default("CBC,RBS,URINE,STOOL,WIDAL,VISION,BP,BMI")
+
+  employees Employee[]
+  createdAt DateTime   @default(now())
 }
 
-// --- Employee & Workflow ---
+// ==========================================
+// 3. EMPLOYEE & MEDICAL WORKFLOW
+// ==========================================
 model Employee {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   campId        String
-  camp          Camp     @relation(fields: [campId], references: [id])
+  camp          Camp    @relation(fields: [campId], references: [id], onDelete: Cascade)
   serialNo      Int
-  uhid          String   @unique
-  
-  // These are now optional (?) for pre-registration
-  empCode       String?
-  name          String
-  age           Int?
-  sex           String?
-  department    String?
-  designation   String?
-  contactNo     String?
-  email         String?
-  
-  status        String   @default("REGISTERED") 
+  uhid          String  @unique
+  certificateNo String? @unique 
+  barcode       String? @unique // NEW: LIMS Barcode tracking
+
+  empCode     String?
+  name        String
+  age         Int?
+  sex         String?
+  department  String?
+  designation String?
+  contactNo   String?
+  email       String?
+
+  status         String  @default("REGISTERED") // REGISTERED, PHLEB_DONE, DOC_DONE, LAB_DONE, COMPLETED
   bloodCollected Boolean @default(false)
   urineCollected Boolean @default(false)
-  
-  vitals        Vitals?
-  examination   Examination?
-  labResults    LabResult[]
-  conclusion    Conclusion?
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  vitals      Vitals?
+  examination Examination?
+  labResults  LabResult[]
+  conclusion  Conclusion?
+
+  // Specialized Diagnostic Tracking
+  xrayStatus String? @default("PENDING") // PENDING, ARRIVED, DONE, N/A
+  xrayFile   String?
+  xrayTech   String? // Tracks WHICH staff member did it
+
+  ecgStatus String? @default("PENDING")
+  ecgFile   String?
+  ecgTech   String?
+
+  pftStatus String? @default("PENDING")
+  pftFile   String?
+  pftTech   String?
+
+  audioStatus String? @default("PENDING")
+  audioFile   String?
+  audioTech   String?
+
+  // NEW: Doctor's notes on the above diagnostics
+  diagnosticRemarks String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Vitals {
   id         String   @id @default(cuid())
   employeeId String   @unique
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   height     Float?
   weight     Float?
   bmi        Float?
@@ -77,37 +140,71 @@ model Vitals {
 }
 
 model Examination {
-  id              String   @id @default(cuid())
-  employeeId      String   @unique
-  employee        Employee @relation(fields: [employeeId], references: [id])
-  pastHistory     String?
-  comorbidities   String?
-  eyeRight        String?
-  eyeLeft         String?
-  colorBlindness  String?
-  ent             String?
-  oral            String?
-  headNeck        String?
-  lungsChest      String?
-  cardiovascular  String?
-  skinVaricose    String?
+  id             String   @id @default(cuid())
+  employeeId     String   @unique
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  pastHistory    String?
+  comorbidities  String?
+  eyeRight       String?
+  eyeLeft        String?
+  colorBlindness String?
+  ent            String?
+  oral           String?
+  headNeck       String?
+  lungsChest     String?
+  cardiovascular String?
+  skinVaricose   String?
 }
 
 model LabResult {
-  id          String   @id @default(cuid())
-  employeeId  String
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  testName    String
-  result      String?
-  unit        String?
-  flag        String?
+  id         String   @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  testName   String
+  result     String?
+  unit       String?
+  flag       String? // NORMAL, ABNORMAL, CRITICAL
 }
 
 model Conclusion {
   id          String   @id @default(cuid())
   employeeId  String   @unique
-  employee    Employee @relation(fields: [employeeId], references: [id])
-  fitness     String   
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fitness     String // FIT, UNFIT, TEMPORARILY_UNFIT
+  declaration String? // Statutory FSSAI Form IX / Occupational Health text
   remarks     String?
   finalizedAt DateTime @default(now())
+}
+
+// ==========================================
+// 4. SUPER ADMIN & SYSTEM SETTINGS
+// ==========================================
+model SystemSetting {
+  id          String   @id @default(cuid())
+  settingKey  String   @unique 
+  settingVal  String 
+  description String? 
+  updatedAt   DateTime @updatedAt
+}
+
+model TestMaster {
+  id          String   @id @default(cuid())
+  testName    String   @unique 
+  category    String 
+  unit        String? 
+  normalRange String? 
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String 
+  entity    String 
+  entityId  String 
+  details   String? 
+  timestamp DateTime @default(now())
 }
