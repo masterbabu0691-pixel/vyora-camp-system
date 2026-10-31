@@ -82,7 +82,7 @@ model Employee {
   camp          Camp    @relation(fields: [campId], references: [id], onDelete: Cascade)
   serialNo      Int
   uhid          String  @unique
-  certificateNo String? @unique 
+  certificateNo String? @unique // e.g., VHC/2026/FSSAI/0001
   barcode       String? @unique // NEW: LIMS Barcode tracking
 
   empCode     String?
@@ -181,18 +181,18 @@ model Conclusion {
 // ==========================================
 model SystemSetting {
   id          String   @id @default(cuid())
-  settingKey  String   @unique 
-  settingVal  String 
-  description String? 
+  settingKey  String   @unique // e.g., "PRINT_MARGIN_TOP"
+  settingVal  String // e.g., "4.5cm"
+  description String? // e.g., "Top margin for Letterhead"
   updatedAt   DateTime @updatedAt
 }
 
 model TestMaster {
   id          String   @id @default(cuid())
-  testName    String   @unique 
-  category    String 
-  unit        String? 
-  normalRange String? 
+  testName    String   @unique // e.g., "Hemoglobin (Hb)"
+  category    String // e.g., "Blood", "Urine", "Physical"
+  unit        String? // e.g., "g/dL"
+  normalRange String? // e.g., "13.5 - 17.5"
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -202,9 +202,9 @@ model AuditLog {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  action    String 
-  entity    String 
-  entityId  String 
-  details   String? 
+  action    String // e.g., "UPDATED_FITNESS", "DELETED_CLIENT"
+  entity    String // e.g., "Employee", "Client"
+  entityId  String // The ID of the record that was changed
+  details   String? // e.g., "Changed from UNFIT to FIT"
   timestamp DateTime @default(now())
 }
