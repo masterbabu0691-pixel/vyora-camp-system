@@ -9,8 +9,8 @@ export default function PhlebotomyPage() {
   const [search, setSearch] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
 
-  // Track checkboxes for each patient row
-  const [collections, setCollections] = useState<Record<string, { blood: boolean, urine: boolean }>>({});
+  // Track checkboxes and barcode for each patient row
+  const [collections, setCollections] = useState<Record<string, { blood: boolean, urine: boolean, barcode: string }>>({});
 
   if (isLoading) return <div className="p-8 font-bold text-rose-800 animate-pulse">Loading Sample Collection...</div>;
   const employees = data?.employees || [];
@@ -29,19 +29,51 @@ export default function PhlebotomyPage() {
     }));
   };
 
+  const handleBarcodeChange = (id: string, value: string) => {
+    setCollections(prev => ({
+      ...prev,
+      [id]: { ...prev[id], barcode: value }
+    }));
+  };
+
   const handleSaveAndNext = async (emp: any) => {
     setSavingId(emp.id);
     const bloodCollected = collections[emp.id]?.blood || false;
     const urineCollected = collections[emp.id]?.urine || false;
+    const barcode = collections[emp.id]?.barcode?.trim() || null;
 
-    await fetch("/api/phlebotomy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeId: emp.id, bloodCollected, urineCollected })
-    });
+    if (bloodCollected && !barcode) {
+      alert("Please scan or enter a Barcode before saving the blood sample.");
+      setSavingId(null);
+      return;
+    }
 
-    mutate(); // Instantly refresh the queue
-    setSavingId(null);
+    try {
+      const res = await fetch("/api/phlebotomy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: emp.id, bloodCollected, urineCollected, barcode })
+      });
+
+      const result = await res.json();
+      
+      if (!res.ok) {
+        alert(`Error: ${result.error || "Failed to save sample"}`);
+        setSavingId(null);
+        return;
+      }
+
+      mutate(); // Instantly refresh the queue
+      setCollections(prev => {
+        const newState = { ...prev };
+        delete newState[emp.id]; // Clear local state for this patient
+        return newState;
+      });
+    } catch (error) {
+      alert("Network error. Please try again.");
+    } finally {
+      setSavingId(null);
+    }
   };
 
   return (
@@ -68,7 +100,7 @@ export default function PhlebotomyPage() {
           <thead>
             <tr className="bg-rose-900 text-white">
               <th className="p-4 font-semibold">Patient Details</th>
-              <th className="p-4 font-semibold text-center">Checklist</th>
+              <th className="p-4 font-semibold text-center">Collection & Barcode</th>
               <th className="p-4 font-semibold text-right">Action</th>
             </tr>
           </thead>
@@ -79,6 +111,7 @@ export default function PhlebotomyPage() {
               filteredEmployees.map((emp: any) => {
                 const isBlood = collections[emp.id]?.blood || false;
                 const isUrine = collections[emp.id]?.urine || false;
+                const barcode = collections[emp.id]?.barcode || "";
 
                 return (
                   <tr key={emp.id} className="hover:bg-rose-50">
@@ -93,23 +126,42 @@ export default function PhlebotomyPage() {
                       </div>
                     </td>
                     
-                    <td className="p-4 text-center space-x-6">
-                      <label className="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="w-6 h-6 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" 
-                          checked={isBlood} onChange={() => handleToggle(emp.id, 'blood')} />
-                        <span className="ml-2 font-bold text-gray-700">Blood</span>
-                      </label>
-                      <label className="inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="w-6 h-6 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" 
-                          checked={isUrine} onChange={() => handleToggle(emp.id, 'urine')} />
-                        <span className="ml-2 font-bold text-gray-700">Urine</span>
-                      </label>
+                    <td className="p-4">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="space-x-6">
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="w-6 h-6 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" 
+                              checked={isBlood} onChange={() => handleToggle(emp.id, 'blood')} />
+                            <span className="ml-2 font-bold text-gray-700">Blood</span>
+                          </label>
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="w-6 h-6 rounded text-rose-600 focus:ring-rose-500 cursor-pointer" 
+                              checked={isUrine} onChange={() => handleToggle(emp.id, 'urine')} />
+                            <span className="ml-2 font-bold text-gray-700">Urine</span>
+                          </label>
+                        </div>
+                        
+                        {/* THE BARCODE SCANNER INPUT */}
+                        <div className="w-full max-w-[220px]">
+                          <input 
+                            type="text" 
+                            placeholder="|||||| Scan Barcode..." 
+                            className={`w-full p-2 text-center text-sm font-mono font-bold rounded-md border-2 outline-none transition ${
+                              isBlood && !barcode ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-rose-500'
+                            }`}
+                            value={barcode}
+                            onChange={(e) => handleBarcodeChange(emp.id, e.target.value)}
+                            // Prevent physical scanner from accidentally submitting/refreshing the page
+                            onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()} 
+                          />
+                        </div>
+                      </div>
                     </td>
 
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-right align-middle">
                       <button 
                         onClick={() => handleSaveAndNext(emp)}
-                        disabled={savingId === emp.id}
+                        disabled={savingId === emp.id || (isBlood && !barcode)}
                         className="bg-rose-600 text-white px-6 py-3 rounded-md font-bold shadow hover:bg-rose-700 disabled:opacity-50 transition"
                       >
                         {savingId === emp.id ? "Saving..." : "Save & Next →"}
